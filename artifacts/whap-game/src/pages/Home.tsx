@@ -394,7 +394,7 @@ export default function Home() {
               </div>
               <button
                 onClick={newGame}
-                className="w-full bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-1 rounded-lg transition-colors"
+                className="mt-4 bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-1 rounded-lg transition-colors"
 
               >
                 Play Again
@@ -451,7 +451,14 @@ export default function Home() {
               <button
                 onClick={() => submitGuess()}
                 disabled={!input.trim()}
-                className="bg-purple-400 hover:bg-purple-200 disabled:bg-slate-700 disabled:text-slate-500 text-slate-900 font-bold px-5 py-3 rounded-lg transition-colors text-sm whitespace-nowrap"
+                className="
+                  bg-gradient-to-r from-violet-300 to-pink-300
+                  hover:from-violet-200 hover:to-pink-200
+                  disabled:from-slate-700 disabled:to-slate-700
+                  disabled:text-slate-500
+                  text-slate-900 font-bold px-5 py-3 rounded-lg
+                  transition-all text-sm whitespace-nowrap"
+
               >
                 Guess
               </button>
@@ -473,17 +480,6 @@ export default function Home() {
               {remaining} guess{remaining !== 1 ? "es" : ""} remaining
             </p>
           </div>
-        )}
-
-        {/* Game over — play again at bottom too */}
-        {gameOver && !showAnswer && (
-          <button
-            onClick={newGame}
-
-            className="w-full bg-purple-400 hover:bg-purple-400 text-slate-900 font-bold px-6 py-3 rounded-lg transition-colors"
-          >
-            Play Again
-          </button>
         )}
 
         {/* Answer key hint (when game over) */}
