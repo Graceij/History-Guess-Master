@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "WHAP History Game"
+version = "1.0.0"
+id = "artifacts/whap-game"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18819
+
+[services.development]
+run = "pnpm --filter @workspace/whap-game run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/whap-game", "run", "build" ]
+publicDir = "artifacts/whap-game/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18819"
+BASE_PATH = "/"

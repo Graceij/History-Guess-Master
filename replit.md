@@ -1,44 +1,44 @@
-# [Project name]
+# WHAP Challenge
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Wordle-style AP World History guessing game for students, built by Scholle at Dawson HS, Pearland ISD.
 
 ## Run & Operate
 
+- `pnpm --filter @workspace/whap-game run dev` — run the game (via workflow: `artifacts/whap-game: web`)
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React + Vite + TailwindCSS + Framer Motion
+- Game logic: fully client-side, no backend needed
+- API: Express 5 (unused by the game, available for future features)
+- DB: PostgreSQL + Drizzle ORM (available for future features)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- `artifacts/whap-game/src/data/gameData.ts` — all 250 AP World History terms (source of truth)
+- `artifacts/whap-game/src/lib/gameLogic.ts` — guess evaluation logic (colors, proximity, direction)
+- `artifacts/whap-game/src/pages/Home.tsx` — main game UI
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Students guess a hidden AP World History term in up to 5 tries. After each guess, color-coded feedback shows how close their guess was across 4 categories: What is it?, Religion, Geographic Area, and Unit. Green = exact match, Yellow = close/related, Red = wrong. Unit guesses also show ↑↓ arrows. 250 terms sourced from the teacher's Excel file. Fully random each game.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Game should be randomized (not student-picked number)
+- Clean, polished classroom-review-game aesthetic
+- Hosted on Replit (no external services needed)
+- Credit: "Scholle's AP World History Challenge — Dawson HS, Pearland ISD"
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- All 250 terms are hardcoded in `gameData.ts` — edit that file to add/remove/change terms
+- The game tracks played IDs in a session ref so the same term won't repeat until all 250 are exhausted
+- "NA" religion means the term has no primary religion association
 
 ## Pointers
 
