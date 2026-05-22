@@ -394,7 +394,8 @@ export default function Home() {
               </div>
               <button
                 onClick={newGame}
-                className="mt-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-6 py-2 rounded-lg transition-colors text-sm"
+                className="w-full bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-1 rounded-lg transition-colors"
+
               >
                 Play Again
               </button>
@@ -478,7 +479,8 @@ export default function Home() {
         {gameOver && !showAnswer && (
           <button
             onClick={newGame}
-            className="w-full bg-purple-400 hover:bg-purple-200 text-slate-700 font-bold px-6 py-3 rounded-lg transition-colors"
+
+            className="w-full bg-purple-400 hover:bg-purple-400 text-slate-900 font-bold px-6 py-3 rounded-lg transition-colors"
           >
             Play Again
           </button>
