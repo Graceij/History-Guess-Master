@@ -529,7 +529,7 @@ export default function Home() {
                 </span>
               </div>
               <button
-                onClick={newGame}
+                onClick={() => newGame()}
                 className="mt-4 bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-1 rounded-lg transition-colors"
 
               >
