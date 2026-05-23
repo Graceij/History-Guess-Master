@@ -8,6 +8,20 @@ import {
   MatchResult,
 } from "../lib/gameLogic";
 
+const ALL_UNIT_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+const UNIT_SHORT: Record<number, string> = {
+  1: "Unit 1 – Global Tapestry",
+  2: "Unit 2 – Networks of Exchange",
+  3: "Unit 3 – Land Based Empires",
+  4: "Unit 4 – Transoceanic Interconnections",
+  5: "Unit 5 – Revolutions",
+  6: "Unit 6 – Consequences of Industrialization",
+  7: "Unit 7 – Global Conflict",
+  8: "Unit 8 – Cold War & Decolonization",
+  9: "Unit 9 – Globalization",
+};
+
 const MAX_GUESSES = 5;
 
 const COL_HEADERS = ["What is it?", "Religion", "Geographic Area", "Unit"];
@@ -109,6 +123,13 @@ function LegendBadge({ color, label }: { color: string; label: string }) {
 }
 
 export default function Home() {
+  const [selectedUnits, setSelectedUnits] = useState<number[]>(ALL_UNIT_NUMS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  const filteredPool = GAME_DATA.filter((e) => selectedUnits.includes(e.unitNum));
+  const noUnitsSelected = selectedUnits.length === 0;
+
   const [answer, setAnswer] = useState(() => getRandomEntry(GAME_DATA));
   const [guesses, setGuesses] = useState<GuessResult[]>([]);
   const [guessEntries, setGuessEntries] = useState<typeof GAME_DATA>([]);
@@ -124,6 +145,26 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const playedIds = useRef<number[]>([]);
+
+  // Close filter panel when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function toggleUnit(unitNum: number) {
+    setSelectedUnits((prev) =>
+      prev.includes(unitNum) ? prev.filter((u) => u !== unitNum) : [...prev, unitNum]
+    );
+  }
+
+  function selectAllUnits() { setSelectedUnits(ALL_UNIT_NUMS); }
+  function clearAllUnits() { setSelectedUnits([]); }
 
   const guessedNames = guesses.map((g) => g.name);
 
@@ -218,9 +259,10 @@ export default function Home() {
     }
   }
 
-  function newGame() {
+  function newGame(pool = filteredPool) {
+    if (pool.length === 0) return;
     playedIds.current.push(answer.id);
-    const next = getRandomEntry(GAME_DATA, playedIds.current);
+    const next = getRandomEntry(pool, playedIds.current);
     setAnswer(next);
     setGuesses([]);
     setGuessEntries([]);
@@ -276,6 +318,98 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
+        {/* Unit Filter */}
+        <div className="mb-4 relative" ref={filterRef}>
+          <button
+            onClick={() => setFilterOpen((o) => !o)}
+            className="flex items-center gap-2 bg-slate-800 border border-slate-600 hover:border-violet-400 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+          >
+            <span>Filter by Unit</span>
+            <span className="bg-slate-700 text-violet-300 text-xs px-2 py-0.5 rounded-full font-bold">
+              {selectedUnits.length === 9
+                ? "All"
+                : selectedUnits.length === 0
+                  ? "None"
+                  : `${selectedUnits.length} / 9`}
+            </span>
+            <span className="text-slate-400 text-xs ml-1">{filterOpen ? "▲" : "▼"}</span>
+          </button>
+
+          <AnimatePresence>
+            {filterOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="absolute z-30 top-full left-0 mt-1.5 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-3 min-w-72"
+              >
+                {/* Select / Clear all */}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={selectAllUnits}
+                    className="flex-1 text-xs font-semibold bg-slate-700 hover:bg-violet-700 text-white rounded-lg py-1.5 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={clearAllUnits}
+                    className="flex-1 text-xs font-semibold bg-slate-700 hover:bg-red-700 text-white rounded-lg py-1.5 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                {/* Checkboxes */}
+                <div className="space-y-1">
+                  {ALL_UNIT_NUMS.map((u) => {
+                    const checked = selectedUnits.includes(u);
+                    const count = GAME_DATA.filter((e) => e.unitNum === u).length;
+                    return (
+                      <label
+                        key={u}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors select-none ${
+                          checked
+                            ? "bg-violet-900/50 border border-violet-600"
+                            : "bg-slate-700/50 border border-transparent hover:bg-slate-700"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleUnit(u)}
+                          className="accent-violet-400 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="text-sm text-white flex-1">{UNIT_SHORT[u]}</span>
+                        <span className="text-xs text-slate-400">{count} terms</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Warning if nothing selected */}
+                {noUnitsSelected && (
+                  <p className="mt-3 text-xs text-red-400 text-center font-medium">
+                    Select at least one unit to play.
+                  </p>
+                )}
+
+                {/* Apply / close */}
+                <button
+                  onClick={() => {
+                    setFilterOpen(false);
+                    if (!noUnitsSelected) newGame(filteredPool);
+                  }}
+                  disabled={noUnitsSelected}
+                  className="mt-3 w-full text-sm font-bold bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-slate-900 py-2 rounded-lg transition-colors"
+                >
+                  Apply & New Game
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Instructions */}
         <div className="mb-5 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
           <p className="text-slate-200 text-sm mb-3">
@@ -406,79 +540,90 @@ export default function Home() {
         {/* Input Area */}
         {!gameOver && (
           <div className="relative flex-1">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <div className="p-[2px] rounded-lg bg-gradient-to-r from-violet-300 to-pink-300 focus-within:from-violet-400 focus-within:to-pink-400 transition-all">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() =>
-                    suggestions.length > 0 && setShowSuggestions(true)
-                  }
-                  onBlur={() =>
-                    setTimeout(() => setShowSuggestions(false), 150)
-                  }
-                  placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
-                  className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-sm"
-                  autoFocus
-                />
-               </div>
-                {/* Dropdown suggestions */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <div
-                    ref={dropdownRef}
-                    className="absolute z-20 top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden"
-                  >
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={s}
-                        onMouseDown={() => selectSuggestion(s)}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                          i === highlightIdx
-                            ? "bg-amber-500 text-slate-900 font-semibold"
-                            : "text-slate-200 hover:bg-slate-700"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {noUnitsSelected ? (
+              <div className="flex items-center gap-3 bg-red-950/60 border border-red-700 rounded-xl px-4 py-3">
+                <span className="text-red-400 text-lg">⚠️</span>
+                <div>
+                  <p className="text-red-300 text-sm font-semibold">Select at least one unit to play.</p>
+                  <p className="text-red-400/70 text-xs mt-0.5">Use the "Filter by Unit" menu above to choose units.</p>
+                </div>
               </div>
-              <button
-                onClick={() => submitGuess()}
-                disabled={!input.trim()}
-                className="
-                  bg-gradient-to-r from-violet-300 to-pink-300
-                  hover:from-violet-200 hover:to-pink-200
-                  disabled:from-slate-700 disabled:to-slate-700
-                  disabled:text-slate-500
-                  text-slate-900 font-bold px-5 py-3 rounded-lg
-                  transition-all text-sm whitespace-nowrap"
-
-              >
-                Guess
-              </button>
-            </div>
-            {/* Error message */}
-            <AnimatePresence>
-              {errorMsg && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="text-red-400 text-xs mt-1.5 ml-1"
-                >
-                  {errorMsg}
-                </motion.p>
-              )}
-            </AnimatePresence>
-            <p className="text-white text-xs mt-1.5 ml-1">
-              {remaining} guess{remaining !== 1 ? "es" : ""} remaining
-            </p>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <div className="p-[2px] rounded-lg bg-gradient-to-r from-violet-300 to-pink-300 focus-within:from-violet-400 focus-within:to-pink-400 transition-all">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() =>
+                          suggestions.length > 0 && setShowSuggestions(true)
+                        }
+                        onBlur={() =>
+                          setTimeout(() => setShowSuggestions(false), 150)
+                        }
+                        placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-sm"
+                        autoFocus
+                      />
+                    </div>
+                    {/* Dropdown suggestions */}
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute z-20 top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden"
+                      >
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={s}
+                            onMouseDown={() => selectSuggestion(s)}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                              i === highlightIdx
+                                ? "bg-amber-500 text-slate-900 font-semibold"
+                                : "text-slate-200 hover:bg-slate-700"
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => submitGuess()}
+                    disabled={!input.trim()}
+                    className="
+                      bg-gradient-to-r from-violet-300 to-pink-300
+                      hover:from-violet-200 hover:to-pink-200
+                      disabled:from-slate-700 disabled:to-slate-700
+                      disabled:text-slate-500
+                      text-slate-900 font-bold px-5 py-3 rounded-lg
+                      transition-all text-sm whitespace-nowrap"
+                  >
+                    Guess
+                  </button>
+                </div>
+                {/* Error message */}
+                <AnimatePresence>
+                  {errorMsg && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-400 text-xs mt-1.5 ml-1"
+                    >
+                      {errorMsg}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+                <p className="text-white text-xs mt-1.5 ml-1">
+                  {remaining} guess{remaining !== 1 ? "es" : ""} remaining
+                </p>
+              </>
+            )}
           </div>
         )}
 
