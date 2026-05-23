@@ -168,6 +168,8 @@ export default function Home() {
 
   const guessedNames = guesses.map((g) => g.name);
 
+  const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
+
   useEffect(() => {
     if (input.trim().length === 0) {
       setSuggestions([]);
@@ -175,7 +177,7 @@ export default function Home() {
       return;
     }
     const q = input.toLowerCase();
-    const filtered = ALL_NAMES.filter(
+    const filtered = poolNames.filter(
       (n) => n.toLowerCase().includes(q) && !guessedNames.includes(n),
     ).slice(0, 8);
     setSuggestions(filtered);
