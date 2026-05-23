@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "WHAP History Game"
+title = "WHAP Review Game"
 version = "1.0.0"
 id = "artifacts/whap-game"
 router = "path"
