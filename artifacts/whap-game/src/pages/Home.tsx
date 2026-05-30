@@ -61,20 +61,23 @@ function GuessRow({
 }) {
   const cells: {
     key: keyof Omit<GuessResult, "name" | "unitDirection">;
-    value: string;
+    value: string | React.ReactNode;
   }[] = [
     { key: "whatIsIt", value: entry.whatIsIt },
     { key: "religion", value: entry.religion },
     { key: "geographicArea", value: entry.geographicArea },
     {
-      key: "unit",
-      value:
-        entry.unit +
-        (result.unit !== "correct" && result.unitDirection
-          ? result.unitDirection === "higher"
-            ? " earlier"
-            : " later"
-          : ""),
+  key: "unit",
+      value: (
+        <>
+          {entry.unit}
+          {result.unit !== "correct" && result.unitDirection && (
+            <div className="text-xs font-bold italic">
+              {result.unitDirection === "higher" ? "later" : "earlier"}
+            </div>
+          )}
+        </>
+      ),
     },
   ];
 
