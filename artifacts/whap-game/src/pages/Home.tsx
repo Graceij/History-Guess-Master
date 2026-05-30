@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GAME_DATA, ALL_NAMES, UNIT_LABELS } from "../data/gameData";
+import logoWide from "@assets/image_1780115563596.png";
 import {
   evaluateGuess,
   getRandomEntry,
@@ -287,14 +288,7 @@ export default function Home() {
       <header className="border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-black">
-              <span className="bg-gradient-to-r from-violet-300 to-pink-300 bg-clip-text text-transparent">
-                WHAP Review Game
-              </span>
-            </h1>
-            <p className="text-slate-400 text-xs">
-              Become an AP World History Master!
-            </p>
+            <img src={logoWide} alt="Go For Five" className="h-10 w-auto" />
           </div>
           <div className="flex gap-4 text-center">
             <div>
