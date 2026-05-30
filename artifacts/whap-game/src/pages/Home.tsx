@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GAME_DATA, ALL_NAMES, UNIT_LABELS } from "../data/gameData";
-import logoWide from "@assets/image_1780115563596.png";
 import {
   evaluateGuess,
   getRandomEntry,
@@ -73,8 +72,8 @@ function GuessRow({
         entry.unit +
         (result.unit !== "correct" && result.unitDirection
           ? result.unitDirection === "higher"
-            ? " ↑"
-            : " ↓"
+            ? " earlier"
+            : " later"
           : ""),
     },
   ];
@@ -285,29 +284,33 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <img src={logoWide} alt="Go For Five" className="h-10 w-auto" />
-          </div>
-          <div className="flex gap-4 text-center">
+      <header className="border-b border-slate-700 bg-[#0a0e28] sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 pt-3 pb-2 flex flex-col items-center gap-0.5">
+          {/* Wide logo — centered */}
+          <img
+            src={`${import.meta.env.BASE_URL}go-for-five.png`}
+            alt="Go For Five"
+            className="w-full max-w-lg h-auto"
+            style={{ maxHeight: "110px", objectFit: "contain" }}
+          />
+          {/* Title + subtitle */}
+          <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
+            AP World History Review Game
+          </h1>
+          <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
+          {/* Score stats */}
+          <div className="flex gap-6 text-center mt-1.5">
             <div>
-              <div className="text-lg font-bold text-green-300">
-                {score.wins}
-              </div>
-              <div className="text-xs text-white">Won</div>
+              <div className="text-base font-bold text-green-300">{score.wins}</div>
+              <div className="text-xs text-slate-400">Won</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-red-400">
-                {score.losses}
-              </div>
-              <div className="text-xs text-white">Lost</div>
+              <div className="text-base font-bold text-red-400">{score.losses}</div>
+              <div className="text-xs text-slate-400">Lost</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-slate-300">
-                {score.played}
-              </div>
-              <div className="text-xs text-white">Played</div>
+              <div className="text-base font-bold text-slate-300">{score.played}</div>
+              <div className="text-xs text-slate-400">Played</div>
             </div>
           </div>
         </div>
