@@ -439,52 +439,53 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Column Headers */}
-        <div className="grid grid-cols-5 gap-1.5 mb-2 px-0">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-1">
-            Your Guess
-          </div>
-          {COL_HEADERS.map((h) => (
-            <div
-              key={h}
-              className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center px-1 py-1"
-            >
-              {h}
-            </div>
-          ))}
-        </div>
-
-        {/* Guess Board */}
-        <div className="mb-4">
-          <AnimatePresence>
-            {guesses.map((g, i) => (
-              <GuessRow
-                key={i}
-                result={g}
-                entry={guessEntries[i]}
-                animate={i === guesses.length - 1}
-              />
-            ))}
-          </AnimatePresence>
-
-          {/* Empty rows */}
-          {!gameOver &&
-            Array.from({ length: remaining }).map((_, i) => (
-              <div
-                key={`empty-${i}`}
-                className="grid grid-cols-5 gap-1.5 mb-1.5"
-              >
+        {/* Column Headers + Guess Board — scrollable on small screens */}
+        <div className="overflow-x-auto -mx-2 px-2 mb-4">
+          <div className="min-w-[480px]">
+            <div className="grid grid-cols-5 gap-1.5 mb-2 px-0">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-1">
+                Your Guess
+              </div>
+              {COL_HEADERS.map((h) => (
                 <div
-                  className={`h-12 rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
+                  key={h}
+                  className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center px-1 py-1"
+                >
+                  {h}
+                </div>
+              ))}
+            </div>
+
+            <AnimatePresence>
+              {guesses.map((g, i) => (
+                <GuessRow
+                  key={i}
+                  result={g}
+                  entry={guessEntries[i]}
+                  animate={i === guesses.length - 1}
                 />
-                {[0, 1, 2, 3].map((j) => (
+              ))}
+            </AnimatePresence>
+
+            {/* Empty rows */}
+            {!gameOver &&
+              Array.from({ length: remaining }).map((_, i) => (
+                <div
+                  key={`empty-${i}`}
+                  className="grid grid-cols-5 gap-1.5 mb-1.5"
+                >
                   <div
-                    key={j}
                     className={`h-12 rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
                   />
-                ))}
-              </div>
-            ))}
+                  {[0, 1, 2, 3].map((j) => (
+                    <div
+                      key={j}
+                      className={`h-12 rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
+                    />
+                  ))}
+                </div>
+              ))}
+          </div>
         </div>
 
         {/* Game Over Banner */}
@@ -514,6 +515,11 @@ export default function Home() {
                 </p>
               )}
               <p className="text-white font-bold text-lg">{answer.name}</p>
+              {answer.description && (
+                <p className="text-slate-200 text-sm mt-2 mb-1 italic">
+                  {answer.description}
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs text-slate-300">
                 <span className="bg-slate-700 px-2 py-1 rounded">
                   {answer.whatIsIt}
@@ -570,6 +576,10 @@ export default function Home() {
                         placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
                         className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-sm"
                         autoFocus
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        autoComplete="off"
+                        spellCheck={false}
                       />
                     </div>
                     {/* Dropdown suggestions */}
@@ -635,6 +645,11 @@ export default function Home() {
             <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wider">
               Answer Reference
             </h3>
+            {answer.description && (
+              <p className="text-slate-200 text-sm mb-3 italic leading-relaxed">
+                {answer.description}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <span className="text-slate-400">Term:</span>{" "}
