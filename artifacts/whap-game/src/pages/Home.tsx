@@ -433,10 +433,6 @@ export default function Home() {
             />
             <LegendBadge color="bg-red-400 text-slate-800" label="✗ Wrong" />
           </div>
-          <p className="text-slate-400 text-xs mt-2">
-            For Unit: arrows (↑↓) show if the answer is in a higher or lower
-            unit.
-          </p>
         </div>
 
         {/* Column Headers + Guess Board — scrollable on small screens */}
