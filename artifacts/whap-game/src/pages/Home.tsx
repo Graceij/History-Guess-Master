@@ -282,7 +282,7 @@ export default function Home() {
     setShowAnswer(false);
     setErrorMsg("");
     setHighlightIdx(-1);
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
   }
 
   const remaining = MAX_GUESSES - guesses.length;
@@ -590,11 +590,11 @@ export default function Home() {
                         spellCheck={false}
                       />
                     </div>
-                    {/* Dropdown suggestions */}
+                    {/* Dropdown suggestions — opens upward so the input stays put */}
                     {showSuggestions && suggestions.length > 0 && (
                       <div
                         ref={dropdownRef}
-                        className="absolute z-20 top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden"
+                        className="absolute z-20 bottom-full left-0 right-0 mb-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-60"
                       >
                         {suggestions.map((s, i) => (
                           <button
