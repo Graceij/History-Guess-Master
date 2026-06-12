@@ -179,10 +179,13 @@ export default function Home() {
       setShowSuggestions(false);
       return;
     }
-    const q = input.toLowerCase();
-    const filtered = poolNames.filter(
-      (n) => n.toLowerCase().includes(q) && !guessedNames.includes(n),
-    ).slice(0, 8);
+    const chars = input.toLowerCase().split("").filter((c) => c !== " ");
+    const filtered = poolNames
+      .filter((n) => {
+        const lower = n.toLowerCase();
+        return chars.every((c) => lower.includes(c)) && !guessedNames.includes(n);
+      })
+      .slice(0, 10);
     setSuggestions(filtered);
     setShowSuggestions(filtered.length > 0);
     setHighlightIdx(-1);
@@ -512,9 +515,19 @@ export default function Home() {
               )}
               <p className="text-white font-bold text-lg">{answer.name}</p>
               {answer.description && (
-                <p className="text-slate-200 text-sm mt-2 mb-1 italic">
-                  {answer.description}
-                </p>
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0, y: 10 }}
+                  animate={{ scale: [0.5, 1.08, 1], opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.55, ease: "easeOut" }}
+                  className="mt-3 mb-1 mx-auto max-w-sm rounded-xl border-2 border-amber-400 bg-amber-400/10 px-4 py-3 shadow-[0_0_24px_4px_rgba(251,191,36,0.35)]"
+                >
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1">
+                    📖 Did you know?
+                  </p>
+                  <p className="text-white text-sm leading-snug font-medium">
+                    {answer.description}
+                  </p>
+                </motion.div>
               )}
               <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs text-slate-300">
                 <span className="bg-slate-700 px-2 py-1 rounded">
@@ -570,8 +583,7 @@ export default function Home() {
                           setTimeout(() => setShowSuggestions(false), 150)
                         }
                         placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-sm"
-                        autoFocus
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-[16px]"
                         autoCorrect="off"
                         autoCapitalize="none"
                         autoComplete="off"
