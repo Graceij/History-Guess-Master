@@ -147,7 +147,16 @@ export default function Home() {
   const [showAnswer, setShowAnswer] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const answerBannerRef = useRef<HTMLDivElement>(null);
   const playedIds = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (showAnswer && answerBannerRef.current) {
+      setTimeout(() => {
+        answerBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    }
+  }, [showAnswer]);
 
   // Close filter panel when clicking outside
   useEffect(() => {
@@ -491,6 +500,7 @@ export default function Home() {
         <AnimatePresence>
           {showAnswer && (
             <motion.div
+              ref={answerBannerRef}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
