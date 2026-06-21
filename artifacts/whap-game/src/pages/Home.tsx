@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GAME_DATA, ALL_NAMES, UNIT_LABELS } from "../data/gameData";
+import { GAME_DATA, UNIT_LABELS } from "../data/gameData";
 import {
   evaluateGuess,
   getRandomEntry,
@@ -48,9 +48,17 @@ const TYPE_SHORT: Record<string, string> = {
 function shortGeo(s: string) { return GEO_SHORT[s] ?? s; }
 function shortType(s: string) { return TYPE_SHORT[s] ?? s; }
 
+interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  bestScore: number;
+  totalWins: number;
+  currentStreak: number;
+  bestStreak: number;
+}
+
 function cellColor(result: MatchResult) {
-  if (result === "correct")
-    return "bg-green-300 text-slate-800 border-green-400";
+  if (result === "correct") return "bg-green-300 text-slate-800 border-green-400";
   if (result === "close") return "bg-amber-200 text-slate-800 border-amber-300";
   return "bg-red-400 text-slate-800 border-red-500";
 }
@@ -59,6 +67,12 @@ function cellIcon(result: MatchResult) {
   if (result === "correct") return "✓";
   if (result === "close") return "~";
   return "✗";
+}
+
+function formatTime(secs: number) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function GuessRow({
@@ -81,9 +95,9 @@ function GuessRow({
     full: string | React.ReactNode;
     short: string | React.ReactNode;
   }[] = [
-    { key: "whatIsIt",      full: entry.whatIsIt,      short: shortType(entry.whatIsIt) },
-    { key: "religion",      full: entry.religion,       short: entry.religion },
-    { key: "geographicArea", full: entry.geographicArea, short: shortGeo(entry.geographicArea) },
+    { key: "whatIsIt",       full: entry.whatIsIt,       short: shortType(entry.whatIsIt) },
+    { key: "religion",       full: entry.religion,        short: entry.religion },
+    { key: "geographicArea", full: entry.geographicArea,  short: shortGeo(entry.geographicArea) },
     {
       key: "unit",
       full: (
@@ -116,13 +130,11 @@ function GuessRow({
       transition={{ duration: 0.4 }}
       className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5"
     >
-      {/* Name column */}
       <div className="flex items-center bg-slate-700 border border-slate-600 rounded-md sm:rounded-lg px-1.5 sm:px-3 py-1.5 sm:py-2.5">
         <span className="text-white font-extrabold text-[10px] sm:text-sm leading-tight break-words min-w-0">
           {result.name}
         </span>
       </div>
-      {/* Category columns */}
       {cells.map((cell) => (
         <motion.div
           key={cell.key}
@@ -146,9 +158,7 @@ function GuessRow({
 
 function LegendBadge({ color, label }: { color: string; label: string }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${color}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
       {label}
     </span>
   );
@@ -179,6 +189,38 @@ export default function Home() {
   const answerBannerRef = useRef<HTMLDivElement>(null);
   const playedIds = useRef<number[]>([]);
 
+  // Timer
+  const gameStartTimeRef = useRef<number>(Date.now());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [finalTime, setFinalTime] = useState(0);
+  const [finalScore, setFinalScore] = useState(0);
+
+  // Leaderboard / account
+  const [username, setUsername] = useState<string>(() => localStorage.getItem("whap_username") ?? "");
+  const [hasSeenPrompt, setHasSeenPrompt] = useState<boolean>(() => !!localStorage.getItem("whap_seen_prompt"));
+  const [showLeaderboardPrompt, setShowLeaderboardPrompt] = useState(false);
+  const [promptInput, setPromptInput] = useState("");
+  const [promptError, setPromptError] = useState("");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [userEntry, setUserEntry] = useState<LeaderboardEntry | null>(null);
+  const leaderboardUserRowRef = useRef<HTMLTableRowElement>(null);
+
+  // Pending result to submit after user enters username in prompt
+  const pendingResultRef = useRef<{ won: boolean; score: number; guessesUsed: number; timeSeconds: number } | null>(null);
+
+  // Timer tick
+  useEffect(() => {
+    if (gameOver) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - gameStartTimeRef.current) / 1000));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [gameOver]);
+
+  // Scroll banner into view on game over
   useEffect(() => {
     if (showAnswer && answerBannerRef.current) {
       setTimeout(() => {
@@ -186,6 +228,15 @@ export default function Home() {
       }, 200);
     }
   }, [showAnswer]);
+
+  // Scroll to user's row in leaderboard modal
+  useEffect(() => {
+    if (showLeaderboard && username && leaderboardUserRowRef.current) {
+      setTimeout(() => {
+        leaderboardUserRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, [showLeaderboard, leaderboard, username]);
 
   // Close filter panel when clicking outside
   useEffect(() => {
@@ -198,6 +249,48 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Lock body scroll when modals are open
+  useEffect(() => {
+    if (showLeaderboard || showLeaderboardPrompt) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showLeaderboard, showLeaderboardPrompt]);
+
+  async function apiSubmitScore(uname: string, didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number): Promise<LeaderboardEntry | null> {
+    try {
+      const res = await fetch("/api/leaderboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: uname, score: sc, guessesUsed, timeSeconds, won: didWin }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as LeaderboardEntry;
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchLeaderboard() {
+    setLeaderboardLoading(true);
+    try {
+      const res = await fetch("/api/leaderboard");
+      const data = (await res.json()) as LeaderboardEntry[];
+      setLeaderboard(data);
+    } catch {
+      setLeaderboard([]);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }
+
+  function openLeaderboard() {
+    setShowLeaderboard(true);
+    fetchLeaderboard();
+  }
+
   function toggleUnit(unitNum: number) {
     setSelectedUnits((prev) =>
       prev.includes(unitNum) ? prev.filter((u) => u !== unitNum) : [...prev, unitNum]
@@ -208,7 +301,6 @@ export default function Home() {
   function clearAllUnits() { setSelectedUnits([]); }
 
   const guessedNames = guesses.map((g) => g.name);
-
   const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
 
   useEffect(() => {
@@ -246,9 +338,7 @@ export default function Home() {
       return;
     }
 
-    const entry = GAME_DATA.find(
-      (e) => e.name.toLowerCase() === name.toLowerCase(),
-    );
+    const entry = GAME_DATA.find((e) => e.name.toLowerCase() === name.toLowerCase());
     if (!entry) {
       setErrorMsg("Not found in the list — pick from the suggestions.");
       setTimeout(() => setErrorMsg(""), 2500);
@@ -265,16 +355,71 @@ export default function Home() {
     setShowSuggestions(false);
 
     const isWin = entry.id === answer.id;
+    const now = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+
     if (isWin) {
+      const sc = (MAX_GUESSES - newGuesses.length) * 1000 - now;
+      setFinalTime(now);
+      setFinalScore(sc);
       setWon(true);
       setGameOver(true);
       setShowAnswer(true);
       setScore((s) => ({ ...s, wins: s.wins + 1, played: s.played + 1 }));
+
+      if (username) {
+        apiSubmitScore(username, true, sc, newGuesses.length, now).then((entry) => {
+          if (entry) setUserEntry(entry);
+        });
+      } else if (!hasSeenPrompt) {
+        pendingResultRef.current = { won: true, score: sc, guessesUsed: newGuesses.length, timeSeconds: now };
+        setTimeout(() => setShowLeaderboardPrompt(true), 900);
+      }
     } else if (newGuesses.length >= MAX_GUESSES) {
+      setFinalTime(now);
+      setFinalScore(0);
       setGameOver(true);
       setShowAnswer(true);
       setScore((s) => ({ ...s, losses: s.losses + 1, played: s.played + 1 }));
+
+      if (username) {
+        apiSubmitScore(username, false, 0, newGuesses.length, now).then((entry) => {
+          if (entry) setUserEntry(entry);
+        });
+      } else if (!hasSeenPrompt) {
+        pendingResultRef.current = { won: false, score: 0, guessesUsed: newGuesses.length, timeSeconds: now };
+        setTimeout(() => setShowLeaderboardPrompt(true), 900);
+      }
     }
+  }
+
+  async function handleJoinLeaderboard() {
+    const uname = promptInput.trim();
+    if (!uname) { setPromptError("Please enter a username."); return; }
+    if (uname.length > 50) { setPromptError("Username must be 50 characters or less."); return; }
+    setPromptError("");
+    setSubmitLoading(true);
+
+    const pending = pendingResultRef.current;
+    let result: LeaderboardEntry | null = null;
+    if (pending) {
+      result = await apiSubmitScore(uname, pending.won, pending.score, pending.guessesUsed, pending.timeSeconds);
+    }
+
+    localStorage.setItem("whap_username", uname);
+    localStorage.setItem("whap_seen_prompt", "1");
+    setUsername(uname);
+    setHasSeenPrompt(true);
+    if (result) setUserEntry(result);
+    pendingResultRef.current = null;
+    setSubmitLoading(false);
+    setShowLeaderboardPrompt(false);
+  }
+
+  function handleSkipPrompt() {
+    localStorage.setItem("whap_seen_prompt", "1");
+    setHasSeenPrompt(true);
+    pendingResultRef.current = null;
+    setShowLeaderboardPrompt(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -320,6 +465,11 @@ export default function Home() {
     setShowAnswer(false);
     setErrorMsg("");
     setHighlightIdx(-1);
+    setUserEntry(null);
+    setFinalTime(0);
+    setFinalScore(0);
+    setElapsedSeconds(0);
+    gameStartTimeRef.current = Date.now();
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
   }
 
@@ -327,36 +477,253 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
-      {/* Header */}
+
+      {/* ── Leaderboard Prompt Modal ── */}
+      <AnimatePresence>
+        {showLeaderboardPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-slate-800 border border-violet-500/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              <div className="text-3xl text-center mb-2">🏆</div>
+              <h2 className="text-lg font-extrabold text-white text-center mb-1">
+                Join the Leaderboard?
+              </h2>
+              <p className="text-slate-400 text-sm text-center mb-4">
+                Pick a username to record your score and track your streak against other players.
+              </p>
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => { setPromptInput(e.target.value); setPromptError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleJoinLeaderboard()}
+                placeholder="Enter a username..."
+                maxLength={50}
+                className="w-full bg-slate-700 border border-slate-500 focus:border-violet-400 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 outline-none text-sm mb-2"
+                autoFocus
+              />
+              {promptError && (
+                <p className="text-red-400 text-xs mb-2">{promptError}</p>
+              )}
+              <button
+                onClick={handleJoinLeaderboard}
+                disabled={submitLoading}
+                className="w-full bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-300 hover:to-pink-300 disabled:opacity-50 text-slate-900 font-bold py-2.5 rounded-lg text-sm transition-all mb-2"
+              >
+                {submitLoading ? "Saving…" : "Join Leaderboard"}
+              </button>
+              <button
+                onClick={handleSkipPrompt}
+                className="w-full text-slate-500 hover:text-slate-300 text-xs py-1 transition-colors"
+              >
+                Skip for now
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Leaderboard Modal ── */}
+      <AnimatePresence>
+        {showLeaderboard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowLeaderboard(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
+                <div>
+                  <h2 className="text-lg font-extrabold text-white">🏆 Leaderboard</h2>
+                  <p className="text-slate-400 text-xs mt-0.5">Ranked by best single-game score</p>
+                </div>
+                <button
+                  onClick={() => setShowLeaderboard(false)}
+                  className="text-slate-400 hover:text-white text-xl leading-none px-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Your stats bar (if logged in) */}
+              {username && userEntry && (
+                <div className="px-5 py-3 bg-violet-900/30 border-b border-violet-700/40 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-violet-300 font-bold text-sm">{username}</span>
+                      <span className="text-slate-400 text-xs ml-2">#{userEntry.rank}</span>
+                    </div>
+                    <div className="flex gap-4 text-center">
+                      <div>
+                        <div className="text-green-300 font-bold text-sm">{userEntry.totalWins}</div>
+                        <div className="text-slate-500 text-[10px]">Wins</div>
+                      </div>
+                      <div>
+                        <div className="text-amber-300 font-bold text-sm">{userEntry.bestScore.toLocaleString()}</div>
+                        <div className="text-slate-500 text-[10px]">Best</div>
+                      </div>
+                      <div>
+                        <div className="text-orange-300 font-bold text-sm">
+                          🔥 {userEntry.currentStreak}
+                        </div>
+                        <div className="text-slate-500 text-[10px]">Streak</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No account CTA */}
+              {!username && (
+                <div className="px-5 py-3 bg-slate-700/40 border-b border-slate-700 shrink-0 flex items-center justify-between gap-3">
+                  <p className="text-slate-400 text-xs">Play a game to join the leaderboard!</p>
+                  <button
+                    onClick={() => { setShowLeaderboard(false); }}
+                    className="text-violet-300 hover:text-violet-200 text-xs font-semibold whitespace-nowrap"
+                  >
+                    Close & Play
+                  </button>
+                </div>
+              )}
+
+              {/* Table */}
+              <div className="overflow-y-auto flex-1">
+                {leaderboardLoading ? (
+                  <div className="flex items-center justify-center py-16 text-slate-400 text-sm">
+                    Loading…
+                  </div>
+                ) : leaderboard.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-sm gap-2">
+                    <span className="text-3xl">🏜️</span>
+                    <span>No scores yet — be the first!</span>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
+                      <tr>
+                        <th className="text-left text-xs text-slate-400 font-semibold px-4 py-2.5 w-10">#</th>
+                        <th className="text-left text-xs text-slate-400 font-semibold px-2 py-2.5">Player</th>
+                        <th className="text-right text-xs text-slate-400 font-semibold px-2 py-2.5">Best</th>
+                        <th className="text-right text-xs text-slate-400 font-semibold px-2 py-2.5">Wins</th>
+                        <th className="text-right text-xs text-slate-400 font-semibold px-4 py-2.5">Streak</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboard.map((entry) => {
+                        const isMe = entry.username === username;
+                        return (
+                          <tr
+                            key={entry.username}
+                            ref={isMe ? leaderboardUserRowRef : undefined}
+                            className={`border-b border-slate-700/50 transition-colors ${
+                              isMe
+                                ? "bg-violet-900/30 border-l-2 border-l-violet-400"
+                                : "hover:bg-slate-700/30"
+                            }`}
+                          >
+                            <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                              {entry.rank <= 3 ? ["🥇","🥈","🥉"][entry.rank - 1] : entry.rank}
+                            </td>
+                            <td className="px-2 py-3">
+                              <span className={`font-semibold ${isMe ? "text-violet-300" : "text-white"}`}>
+                                {entry.username}
+                              </span>
+                              {isMe && <span className="ml-1.5 text-[10px] text-violet-400 font-bold">YOU</span>}
+                            </td>
+                            <td className="px-2 py-3 text-right text-amber-300 font-bold font-mono">
+                              {entry.bestScore.toLocaleString()}
+                            </td>
+                            <td className="px-2 py-3 text-right text-green-300 font-medium">
+                              {entry.totalWins}
+                            </td>
+                            <td className="px-4 py-3 text-right text-orange-300 font-medium">
+                              {entry.currentStreak > 0 ? `🔥 ${entry.currentStreak}` : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div className="px-5 py-3 border-t border-slate-700 text-center shrink-0">
+                <p className="text-slate-500 text-xs">
+                  Score = (7 − guesses) × 1000 − seconds
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Header ── */}
       <header className="border-b border-slate-700 bg-[#0a0e28] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 pt-3 pb-2 flex flex-col items-center gap-0.5">
-          {/* Wide logo — centered */}
+        <div className="max-w-4xl mx-auto px-4 pt-1 pb-2 flex flex-col items-center gap-0.5">
           <img
             src={`${import.meta.env.BASE_URL}go-for-five.png`}
             alt="Go For Five"
             className="w-full max-w-lg h-auto"
             style={{ maxHeight: "110px", objectFit: "contain" }}
           />
-          {/* Title + subtitle */}
           <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
             AP World History Review Game
           </h1>
           <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
-          {/* Score stats */}
-          <div className="flex gap-6 text-center mt-1.5">
-            <div>
-              <div className="text-base font-bold text-green-300">{score.wins}</div>
-              <div className="text-xs text-slate-400">Won</div>
+          {/* Stats row + leaderboard button */}
+          <div className="flex items-center gap-4 mt-1.5">
+            <div className="flex gap-6 text-center">
+              <div>
+                <div className="text-base font-bold text-green-300">{score.wins}</div>
+                <div className="text-xs text-slate-400">Won</div>
+              </div>
+              <div>
+                <div className="text-base font-bold text-red-400">{score.losses}</div>
+                <div className="text-xs text-slate-400">Lost</div>
+              </div>
+              <div>
+                <div className="text-base font-bold text-slate-300">{score.played}</div>
+                <div className="text-xs text-slate-400">Played</div>
+              </div>
             </div>
-            <div>
-              <div className="text-base font-bold text-red-400">{score.losses}</div>
-              <div className="text-xs text-slate-400">Lost</div>
-            </div>
-            <div>
-              <div className="text-base font-bold text-slate-300">{score.played}</div>
-              <div className="text-xs text-slate-400">Played</div>
-            </div>
+            <button
+              onClick={openLeaderboard}
+              className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors ml-2"
+            >
+              🏆 <span className="hidden sm:inline">Leaderboard</span>
+            </button>
           </div>
+          {/* Username chip */}
+          {username && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] text-violet-400 font-semibold">
+                {username}
+              </span>
+              {userEntry && userEntry.currentStreak > 1 && (
+                <span className="text-[10px] text-orange-400 font-bold">
+                  🔥 {userEntry.currentStreak}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -387,7 +754,6 @@ export default function Home() {
                 transition={{ duration: 0.18 }}
                 className="absolute z-30 top-full left-0 mt-1.5 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-3 min-w-72"
               >
-                {/* Select / Clear all */}
                 <div className="flex gap-2 mb-3">
                   <button
                     onClick={selectAllUnits}
@@ -402,8 +768,6 @@ export default function Home() {
                     Clear All
                   </button>
                 </div>
-
-                {/* Checkboxes */}
                 <div className="space-y-1">
                   {ALL_UNIT_NUMS.map((u) => {
                     const checked = selectedUnits.includes(u);
@@ -429,15 +793,11 @@ export default function Home() {
                     );
                   })}
                 </div>
-
-                {/* Warning if nothing selected */}
                 {noUnitsSelected && (
                   <p className="mt-3 text-xs text-red-400 text-center font-medium">
                     Select at least one unit to play.
                   </p>
                 )}
-
-                {/* Apply / close */}
                 <button
                   onClick={() => {
                     setFilterOpen(false);
@@ -464,14 +824,8 @@ export default function Home() {
             . After each guess, the colors show how close you are:
           </p>
           <div className="flex flex-wrap gap-2">
-            <LegendBadge
-              color="bg-green-300 text-slate-800"
-              label="✓ Correct match"
-            />
-            <LegendBadge
-              color="bg-amber-200 text-slate-800"
-              label="~ Close (related)"
-            />
+            <LegendBadge color="bg-green-300 text-slate-800" label="✓ Correct match" />
+            <LegendBadge color="bg-amber-200 text-slate-800" label="~ Close (related)" />
             <LegendBadge color="bg-red-400 text-slate-800" label="✗ Wrong" />
           </div>
         </div>
@@ -479,7 +833,6 @@ export default function Home() {
         {/* Column Headers + Guess Board */}
         <div className="mb-4 sm:overflow-x-auto sm:-mx-2 sm:px-2">
           <div className="sm:min-w-[480px]">
-            {/* Headers */}
             <div className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1.5 sm:mb-2">
               <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider px-1.5 sm:px-3 py-1">
                 <span className="sm:hidden">Guess</span>
@@ -507,21 +860,15 @@ export default function Home() {
               ))}
             </AnimatePresence>
 
-            {/* Empty rows */}
             {!gameOver &&
               Array.from({ length: remaining }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
                   className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5"
                 >
-                  <div
-                    className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
-                  />
+                  <div className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />
                   {[0, 1, 2, 3].map((j) => (
-                    <div
-                      key={j}
-                      className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
-                    />
+                    <div key={j} className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />
                   ))}
                 </div>
               ))}
@@ -537,9 +884,7 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
               className={`mb-5 rounded-xl border p-4 text-center ${
-                won
-                  ? "bg-green-900/40 border-green-600"
-                  : "bg-red-900/40 border-red-600"
+                won ? "bg-green-900/40 border-green-600" : "bg-red-900/40 border-red-600"
               }`}
             >
               <div className="text-2xl font-extrabold mb-1">
@@ -551,11 +896,35 @@ export default function Home() {
                   {guesses.length === 1 ? "guess" : "guesses"}!
                 </p>
               ) : (
-                <p className="text-red-300 text-sm mb-1">
-                  Better luck next time!
-                </p>
+                <p className="text-red-300 text-sm mb-1">Better luck next time!</p>
               )}
+
+              {/* Score breakdown for wins */}
+              {won && (
+                <div className="flex items-center justify-center gap-3 my-2 flex-wrap">
+                  <div className="bg-slate-800/70 rounded-lg px-3 py-1.5 text-center">
+                    <div className="text-amber-300 font-extrabold text-lg">{finalScore.toLocaleString()}</div>
+                    <div className="text-slate-400 text-[10px] uppercase tracking-wider">Score</div>
+                  </div>
+                  <div className="bg-slate-800/70 rounded-lg px-3 py-1.5 text-center">
+                    <div className="text-slate-200 font-bold text-base">{guesses.length}/{MAX_GUESSES}</div>
+                    <div className="text-slate-400 text-[10px] uppercase tracking-wider">Guesses</div>
+                  </div>
+                  <div className="bg-slate-800/70 rounded-lg px-3 py-1.5 text-center">
+                    <div className="text-slate-200 font-bold text-base">{formatTime(finalTime)}</div>
+                    <div className="text-slate-400 text-[10px] uppercase tracking-wider">Time</div>
+                  </div>
+                  {userEntry && (
+                    <div className="bg-violet-900/50 border border-violet-600 rounded-lg px-3 py-1.5 text-center">
+                      <div className="text-violet-300 font-extrabold text-base">🔥 {userEntry.currentStreak}</div>
+                      <div className="text-slate-400 text-[10px] uppercase tracking-wider">Streak</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <p className="text-white font-bold text-lg">{answer.name}</p>
+
               {answer.description && (
                 <motion.div
                   initial={{ scale: 0.5, opacity: 0, y: 10 }}
@@ -571,27 +940,28 @@ export default function Home() {
                   </p>
                 </motion.div>
               )}
-              <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs text-slate-300">
-                <span className="bg-slate-700 px-2 py-1 rounded">
-                  {answer.whatIsIt}
-                </span>
-                <span className="bg-slate-700 px-2 py-1 rounded">
-                  {answer.religion}
-                </span>
-                <span className="bg-slate-700 px-2 py-1 rounded">
-                  {answer.geographicArea}
-                </span>
-                <span className="bg-slate-700 px-2 py-1 rounded">
-                  {UNIT_LABELS[answer.unitNum]}
-                </span>
-              </div>
-              <button
-                onClick={() => newGame()}
-                className="mt-4 bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-1 rounded-lg transition-colors"
 
-              >
-                Play Again
-              </button>
+              <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs text-slate-300">
+                <span className="bg-slate-700 px-2 py-1 rounded">{answer.whatIsIt}</span>
+                <span className="bg-slate-700 px-2 py-1 rounded">{answer.religion}</span>
+                <span className="bg-slate-700 px-2 py-1 rounded">{answer.geographicArea}</span>
+                <span className="bg-slate-700 px-2 py-1 rounded">{UNIT_LABELS[answer.unitNum]}</span>
+              </div>
+
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={() => newGame()}
+                  className="bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 text-slate-900 font-bold px-6 py-2 rounded-lg transition-colors text-sm"
+                >
+                  Play Again
+                </button>
+                <button
+                  onClick={openLeaderboard}
+                  className="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white font-semibold px-5 py-2 rounded-lg transition-colors text-sm"
+                >
+                  🏆 Leaderboard
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -618,12 +988,8 @@ export default function Home() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        onFocus={() =>
-                          suggestions.length > 0 && setShowSuggestions(true)
-                        }
-                        onBlur={() =>
-                          setTimeout(() => setShowSuggestions(false), 150)
-                        }
+                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                         placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
                         className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-[16px]"
                         autoCorrect="off"
@@ -632,7 +998,6 @@ export default function Home() {
                         spellCheck={false}
                       />
                     </div>
-                    {/* Dropdown suggestions — opens upward so the input stays put */}
                     {showSuggestions && suggestions.length > 0 && (
                       <div
                         ref={dropdownRef}
@@ -657,18 +1022,11 @@ export default function Home() {
                   <button
                     onClick={() => submitGuess()}
                     disabled={!input.trim()}
-                    className="
-                      bg-gradient-to-r from-violet-300 to-pink-300
-                      hover:from-violet-200 hover:to-pink-200
-                      disabled:from-slate-700 disabled:to-slate-700
-                      disabled:text-slate-500
-                      text-slate-900 font-bold px-5 py-3 rounded-lg
-                      transition-all text-sm whitespace-nowrap"
+                    className="bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-slate-900 font-bold px-5 py-3 rounded-lg transition-all text-sm whitespace-nowrap"
                   >
                     Guess
                   </button>
                 </div>
-                {/* Error message */}
                 <AnimatePresence>
                   {errorMsg && (
                     <motion.p
@@ -681,15 +1039,20 @@ export default function Home() {
                     </motion.p>
                   )}
                 </AnimatePresence>
-                <p className="text-white text-xs mt-1.5 ml-1">
-                  {remaining} guess{remaining !== 1 ? "es" : ""} remaining
-                </p>
+                <div className="flex items-center justify-between mt-1.5 ml-1">
+                  <p className="text-white text-xs">
+                    {remaining} guess{remaining !== 1 ? "es" : ""} remaining
+                  </p>
+                  <p className="text-slate-500 text-xs font-mono">
+                    ⏱ {formatTime(elapsedSeconds)}
+                  </p>
+                </div>
               </>
             )}
           </div>
         )}
 
-        {/* Answer key hint (when game over) */}
+        {/* Answer Reference (game over) */}
         {gameOver && (
           <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wider">
@@ -719,15 +1082,12 @@ export default function Home() {
               </div>
               <div className="col-span-2">
                 <span className="text-slate-400">Unit:</span>{" "}
-                <span className="text-white">
-                  {UNIT_LABELS[answer.unitNum]}
-                </span>
+                <span className="text-white">{UNIT_LABELS[answer.unitNum]}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Copyright */}
         <p className="text-center text-slate-600 text-xs mt-8">
           Scholle's AP World History Challenge — Dawson HS, Pearland ISD
         </p>
