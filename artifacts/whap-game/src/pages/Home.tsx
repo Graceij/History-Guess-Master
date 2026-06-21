@@ -22,15 +22,31 @@ const UNIT_SHORT: Record<number, string> = {
   9: "Unit 9 – Globalization",
 };
 
-const MAX_GUESSES = 5;
+const MAX_GUESSES = 7;
 
 const COL_HEADERS = ["What is it?", "Religion", "Geographic Area", "Unit"];
+const COL_HEADERS_SHORT = ["Type", "Faith", "Area", "Unit"];
 const COL_KEYS: (keyof Omit<GuessResult, "name" | "unitDirection">)[] = [
   "whatIsIt",
   "religion",
   "geographicArea",
   "unit",
 ];
+
+const GEO_SHORT: Record<string, string> = {
+  "Central America/Caribbean": "C. Am.",
+  "North America": "N. Am.",
+  "South America": "S. Am.",
+  "Middle East": "M. East",
+};
+const TYPE_SHORT: Record<string, string> = {
+  "Ideological Concept": "Ideology",
+  "Physical Concept": "Concept",
+  "Ruling Powers": "Rulers",
+  "Innovation": "Tech",
+};
+function shortGeo(s: string) { return GEO_SHORT[s] ?? s; }
+function shortType(s: string) { return TYPE_SHORT[s] ?? s; }
 
 function cellColor(result: MatchResult) {
   if (result === "correct")
@@ -56,25 +72,37 @@ function GuessRow({
     religion: string;
     geographicArea: string;
     unit: string;
+    unitNum: number;
   };
   animate: boolean;
 }) {
   const cells: {
     key: keyof Omit<GuessResult, "name" | "unitDirection">;
-    value: string | React.ReactNode;
+    full: string | React.ReactNode;
+    short: string | React.ReactNode;
   }[] = [
-    { key: "whatIsIt", value: entry.whatIsIt },
-    { key: "religion", value: entry.religion },
-    { key: "geographicArea", value: entry.geographicArea },
+    { key: "whatIsIt",      full: entry.whatIsIt,      short: shortType(entry.whatIsIt) },
+    { key: "religion",      full: entry.religion,       short: entry.religion },
+    { key: "geographicArea", full: entry.geographicArea, short: shortGeo(entry.geographicArea) },
     {
-  key: "unit",
-      value: (
+      key: "unit",
+      full: (
         <>
           {entry.unit}
           {result.unit !== "correct" && result.unitDirection && (
             <div className="text-xs font-bold italic">
               {result.unitDirection === "higher" ? "later" : "earlier"}
             </div>
+          )}
+        </>
+      ),
+      short: (
+        <>
+          {`U${entry.unitNum}`}
+          {result.unit !== "correct" && result.unitDirection && (
+            <span className="font-bold ml-0.5">
+              {result.unitDirection === "higher" ? "↑" : "↓"}
+            </span>
           )}
         </>
       ),
@@ -86,11 +114,11 @@ function GuessRow({
       initial={animate ? { opacity: 0, y: 20 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="grid grid-cols-5 gap-1.5 mb-1.5"
+      className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5"
     >
       {/* Name column */}
-      <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5">
-        <span className="text-white font-extrabold text-sm leading-tight">
+      <div className="flex items-center bg-slate-700 border border-slate-600 rounded-md sm:rounded-lg px-1.5 sm:px-3 py-1.5 sm:py-2.5">
+        <span className="text-white font-extrabold text-[10px] sm:text-sm leading-tight break-words min-w-0">
           {result.name}
         </span>
       </div>
@@ -101,13 +129,14 @@ function GuessRow({
           initial={animate ? { scale: 0.8, opacity: 0 } : false}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.35, delay: 0.1 }}
-          className={`flex flex-col items-center justify-center rounded-lg border px-2 py-2.5 text-center ${cellColor(result[cell.key])}`}
+          className={`flex flex-col items-center justify-center rounded-md sm:rounded-lg border px-0.5 sm:px-2 py-1.5 sm:py-2.5 text-center ${cellColor(result[cell.key])}`}
         >
-          <span className="text-base font-bold">
+          <span className="text-xs sm:text-base font-bold leading-none">
             {cellIcon(result[cell.key])}
           </span>
-          <span className="text-xs font-medium mt-0.5 leading-tight">
-            {cell.value}
+          <span className="text-[9px] sm:text-xs font-medium mt-0.5 leading-tight">
+            <span className="sm:hidden">{cell.short}</span>
+            <span className="hidden sm:inline">{cell.full}</span>
           </span>
         </motion.div>
       ))}
@@ -447,19 +476,22 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Column Headers + Guess Board — scrollable on small screens */}
-        <div className="overflow-x-auto -mx-2 px-2 mb-4">
-          <div className="min-w-[480px]">
-            <div className="grid grid-cols-5 gap-1.5 mb-2 px-0">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-1">
-                Your Guess
+        {/* Column Headers + Guess Board */}
+        <div className="mb-4 sm:overflow-x-auto sm:-mx-2 sm:px-2">
+          <div className="sm:min-w-[480px]">
+            {/* Headers */}
+            <div className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1.5 sm:mb-2">
+              <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider px-1.5 sm:px-3 py-1">
+                <span className="sm:hidden">Guess</span>
+                <span className="hidden sm:inline">Your Guess</span>
               </div>
-              {COL_HEADERS.map((h) => (
+              {COL_HEADERS.map((h, i) => (
                 <div
                   key={h}
-                  className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center px-1 py-1"
+                  className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider text-center px-0.5 sm:px-1 py-1"
                 >
-                  {h}
+                  <span className="sm:hidden">{COL_HEADERS_SHORT[i]}</span>
+                  <span className="hidden sm:inline">{h}</span>
                 </div>
               ))}
             </div>
@@ -480,15 +512,15 @@ export default function Home() {
               Array.from({ length: remaining }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="grid grid-cols-5 gap-1.5 mb-1.5"
+                  className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5"
                 >
                   <div
-                    className={`h-12 rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
+                    className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
                   />
                   {[0, 1, 2, 3].map((j) => (
                     <div
                       key={j}
-                      className={`h-12 rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
+                      className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`}
                     />
                   ))}
                 </div>
