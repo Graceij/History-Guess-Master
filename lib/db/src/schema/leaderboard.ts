@@ -1,9 +1,8 @@
 import { pgTable, varchar, integer, boolean, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
 
 export const leaderboardUsersTable = pgTable("leaderboard_users", {
-  username: varchar("username", { length: 50 }).primaryKey(),
+  clerkUserId: varchar("clerk_user_id", { length: 100 }).primaryKey(),
+  displayName: varchar("display_name", { length: 50 }).notNull().unique(),
   bestScore: integer("best_score").default(0).notNull(),
   totalWins: integer("total_wins").default(0).notNull(),
   currentStreak: integer("current_streak").default(0).notNull(),
@@ -13,9 +12,4 @@ export const leaderboardUsersTable = pgTable("leaderboard_users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertLeaderboardUserSchema = createInsertSchema(
-  leaderboardUsersTable
-).omit({ createdAt: true, updatedAt: true });
-
 export type LeaderboardUser = typeof leaderboardUsersTable.$inferSelect;
-export type InsertLeaderboardUser = z.infer<typeof insertLeaderboardUserSchema>;

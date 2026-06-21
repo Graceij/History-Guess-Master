@@ -1,3 +1,4 @@
+@layer theme, base, clerk, components, utilities;
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -45,4 +46,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Clerk pseudo-state overrides — must live outside @layer */
+.cl-formFieldInput::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+.cl-formFieldInput:focus {
+  border-color: #a78bfa;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.25);
 }
