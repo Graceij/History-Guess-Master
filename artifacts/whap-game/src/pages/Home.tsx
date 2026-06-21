@@ -329,37 +329,38 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Header */}
       <header className="border-b border-slate-700 bg-[#0a0e28] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 pt-2 pb-1.5 sm:pt-3 sm:pb-2 flex flex-col items-center gap-0.5">
+        <div className="max-w-4xl mx-auto px-4 pt-3 pb-2 flex flex-col items-center gap-0.5">
           {/* Wide logo — centered */}
           <img
             src={`${import.meta.env.BASE_URL}go-for-five.png`}
             alt="Go For Five"
-            className="w-full max-w-lg h-auto max-h-[60px] sm:max-h-[110px] object-contain"
+            className="w-full max-w-lg h-auto"
+            style={{ maxHeight: "110px", objectFit: "contain" }}
           />
-          {/* Title + subtitle — desktop only */}
-          <h1 className="hidden sm:block text-base font-extrabold tracking-tight text-white leading-tight">
+          {/* Title + subtitle */}
+          <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
             AP World History Review Game
           </h1>
-          <p className="hidden sm:block text-slate-400 text-xs">Become an AP World History Master!</p>
+          <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
           {/* Score stats */}
-          <div className="flex gap-5 sm:gap-6 text-center mt-1 sm:mt-1.5">
+          <div className="flex gap-6 text-center mt-1.5">
             <div>
-              <div className="text-sm sm:text-base font-bold text-green-300">{score.wins}</div>
-              <div className="text-[10px] sm:text-xs text-slate-400">Won</div>
+              <div className="text-base font-bold text-green-300">{score.wins}</div>
+              <div className="text-xs text-slate-400">Won</div>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold text-red-400">{score.losses}</div>
-              <div className="text-[10px] sm:text-xs text-slate-400">Lost</div>
+              <div className="text-base font-bold text-red-400">{score.losses}</div>
+              <div className="text-xs text-slate-400">Lost</div>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold text-slate-300">{score.played}</div>
-              <div className="text-[10px] sm:text-xs text-slate-400">Played</div>
+              <div className="text-base font-bold text-slate-300">{score.played}</div>
+              <div className="text-xs text-slate-400">Played</div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-3 sm:py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Unit Filter */}
         <div className="mb-4 relative" ref={filterRef}>
           <button
@@ -452,8 +453,8 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        {/* Instructions — full on desktop, compact on mobile */}
-        <div className="hidden sm:block mb-5 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+        {/* Instructions */}
+        <div className="mb-5 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
           <p className="text-slate-200 text-sm mb-3">
             Guess the hidden AP World History person, place, event, or concept
             in{" "}
@@ -463,16 +464,16 @@ export default function Home() {
             . After each guess, the colors show how close you are:
           </p>
           <div className="flex flex-wrap gap-2">
-            <LegendBadge color="bg-green-300 text-slate-800" label="✓ Correct match" />
-            <LegendBadge color="bg-amber-200 text-slate-800" label="~ Close (related)" />
+            <LegendBadge
+              color="bg-green-300 text-slate-800"
+              label="✓ Correct match"
+            />
+            <LegendBadge
+              color="bg-amber-200 text-slate-800"
+              label="~ Close (related)"
+            />
             <LegendBadge color="bg-red-400 text-slate-800" label="✗ Wrong" />
           </div>
-        </div>
-        {/* Mobile-only compact legend */}
-        <div className="sm:hidden flex gap-1.5 mb-3">
-          <LegendBadge color="bg-green-300 text-slate-800" label="✓ Match" />
-          <LegendBadge color="bg-amber-200 text-slate-800" label="~ Close" />
-          <LegendBadge color="bg-red-400 text-slate-800" label="✗ Wrong" />
         </div>
 
         {/* Column Headers + Guess Board */}
