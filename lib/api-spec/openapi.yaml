@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: leaderboard
+    description: Leaderboard operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get global leaderboard
+      description: Returns all users ordered by best score descending, with rank
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+    post:
+      operationId: submitScore
+      tags: [leaderboard]
+      summary: Submit a game result
+      description: Creates or updates the user's leaderboard entry and updates streak
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitScoreRequest"
+      responses:
+        "200":
+          description: Updated leaderboard entry with rank
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardEntry"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +74,51 @@ components:
           type: string
       required:
         - status
-
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        username:
+          type: string
+        bestScore:
+          type: integer
+        totalWins:
+          type: integer
+        currentStreak:
+          type: integer
+        bestStreak:
+          type: integer
+      required:
+        - rank
+        - username
+        - bestScore
+        - totalWins
+        - currentStreak
+        - bestStreak
+    SubmitScoreRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        score:
+          type: integer
+        guessesUsed:
+          type: integer
+        timeSeconds:
+          type: integer
+        won:
+          type: boolean
+      required:
+        - username
+        - score
+        - guessesUsed
+        - timeSeconds
+        - won
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
