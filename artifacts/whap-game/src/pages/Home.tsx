@@ -350,11 +350,19 @@ export default function Home() {
   const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
 
   useEffect(() => {
-    if (input.trim().length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
-    const chars = input.toLowerCase().split("").filter((c) => c !== " ");
-    const filtered = poolNames
-      .filter((n) => { const l = n.toLowerCase(); return chars.every((c) => l.includes(c)) && !guessedNames.includes(n); })
-      .slice(0, 10);
+    const q = input.trim();
+    if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
+    const ql = q.toLowerCase();
+    const filtered = poolNames.filter((n) => n.toLowerCase().includes(ql) && !guessedNames.includes(n));
+    filtered.sort((a, b) => {
+      const al = a.toLowerCase(), bl = b.toLowerCase();
+      const aStarts = al.startsWith(ql), bStarts = bl.startsWith(ql);
+      if (aStarts !== bStarts) return aStarts ? -1 : 1;
+      const aWord = al.split(/\s+/).some((w) => w.startsWith(ql));
+      const bWord = bl.split(/\s+/).some((w) => w.startsWith(ql));
+      if (aWord !== bWord) return aWord ? -1 : 1;
+      return a.localeCompare(b);
+    });
     setSuggestions(filtered);
     setShowSuggestions(filtered.length > 0);
     setHighlightIdx(-1);
