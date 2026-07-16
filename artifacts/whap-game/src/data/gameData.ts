@@ -152,7 +152,7 @@ export const GAME_DATA: GameEntry[] = [
   { id: 140, name: "Spinning Jenny", whatIsIt: "Innovation", religion: "NA", geographicArea: "Europe", unit: "Revolutions", unitNum: 5, description: "Machine that mechanized textile production and increased efficiency." },
   { id: 141, name: "Steam Engine", whatIsIt: "Innovation", religion: "NA", geographicArea: "Europe", unit: "Revolutions", unitNum: 5, description: "Machine that converts heat energy into mechanical power." },
   { id: 142, name: "Champa Rice", whatIsIt: "Innovation", religion: "NA", geographicArea: "Asia", unit: "Global Tapestry", unitNum: 1, description: "Fast-ripening rice from Vietnam that increased Chinese agricultural production." },
-  { id: 143, name: "Compass", whatIsIt: "Innovation", religion: "NA", geographicArea: "Asia", unit: "Global Tapestry", unitNum: 1, description: "Navigation tool using magnetism to determine direction." },
+
   { id: 144, name: "Grand Canal", whatIsIt: "Innovation", religion: "NA", geographicArea: "Asia", unit: "Global Tapestry", unitNum: 1, description: "Chinese waterway connecting northern and southern regions for trade and transport." },
   { id: 145, name: "Paper Money", whatIsIt: "Innovation", religion: "NA", geographicArea: "Asia", unit: "Global Tapestry", unitNum: 1, description: "Currency made from paper, first widely used during China's Song Dynasty." },
   { id: 146, name: "Lateen Sail", whatIsIt: "Innovation", religion: "NA", geographicArea: "Middle East", unit: "Networks of Exchange", unitNum: 2, description: "Triangular sail allowing ships to sail against the wind." },
