@@ -57,6 +57,7 @@ interface LeaderboardEntry {
   totalWins: number;
   currentStreak: number;
   bestStreak: number;
+  dailyStreak: number;
 }
 
 function cellColor(result: MatchResult) {
@@ -266,13 +267,13 @@ export default function Home() {
   }, [showLeaderboard, showDisplayNamePrompt]);
 
   async function apiSubmitScore(
-    didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number, displayName?: string
+    didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number, termName?: string, displayName?: string
   ): Promise<LeaderboardEntry | null> {
     try {
       const res = await fetch("/api/leaderboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score: sc, guessesUsed, timeSeconds, won: didWin, displayName }),
+        body: JSON.stringify({ score: sc, guessesUsed, timeSeconds, won: didWin, termName, displayName }),
       });
       if (res.status === 409) {
         const data = await res.json();
@@ -379,9 +380,11 @@ export default function Home() {
 
   function handleGameEnd(didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number) {
     if (!isSignedIn) return;
+    // Only submit to leaderboard when all 9 units are active
+    if (selectedUnits.length !== ALL_UNIT_NUMS.length) return;
     if (myEntry) {
       // Already have a display name — auto-submit
-      apiSubmitScore(didWin, sc, guessesUsed, timeSeconds).then((updated) => {
+      apiSubmitScore(didWin, sc, guessesUsed, timeSeconds, answer.name).then((updated) => {
         if (updated) setMyEntry(updated);
       });
     } else if (myEntryLoaded) {
@@ -400,7 +403,7 @@ export default function Home() {
 
     const pending = pendingResultRef.current;
     if (pending) {
-      const result = await apiSubmitScore(pending.won, pending.score, pending.guessesUsed, pending.timeSeconds, dn);
+      const result = await apiSubmitScore(pending.won, pending.score, pending.guessesUsed, pending.timeSeconds, answer.name, dn);
       if (result) {
         setMyEntry(result);
         pendingResultRef.current = null;
@@ -652,15 +655,17 @@ export default function Home() {
             )}
             {isSignedIn && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-violet-300 font-semibold">{myEntry?.displayName ?? user.primaryEmailAddress?.emailAddress?.split("@")[0]}</span>
-                {myEntry && myEntry.currentStreak > 1 && (
-                  <span className="text-xs text-orange-400 font-bold">🔥 {myEntry.currentStreak}</span>
-                )}
                 <button
-                  onClick={() => signOut({ redirectUrl: basePath || "/" })}
-                  className="text-slate-500 hover:text-slate-300 text-xs transition-colors"
+                  onClick={() => setLocation("/profile")}
+                  className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
                 >
-                  Sign out
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[10px] font-extrabold text-white shrink-0">
+                    {(myEntry?.displayName ?? user.primaryEmailAddress?.emailAddress ?? "?")[0].toUpperCase()}
+                  </span>
+                  <span className="hidden sm:inline max-w-[80px] truncate">{myEntry?.displayName ?? "Profile"}</span>
+                  {myEntry && myEntry.dailyStreak > 1 && (
+                    <span className="text-orange-400">🔥{myEntry.dailyStreak}</span>
+                  )}
                 </button>
               </div>
             )}
@@ -809,6 +814,12 @@ export default function Home() {
                   <button onClick={() => setLocation("/sign-up")} className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">
                     Sign up
                   </button>{" "}to save scores &amp; track your streak!
+                </div>
+              )}
+              {/* Unit filter warning */}
+              {isSignedIn && selectedUnits.length !== ALL_UNIT_NUMS.length && (
+                <div className="my-2 px-3 py-1.5 bg-amber-900/40 border border-amber-600/50 rounded-lg text-xs text-amber-300">
+                  ⚠️ Score not saved — enable all 9 units for leaderboard play.
                 </div>
               )}
 
