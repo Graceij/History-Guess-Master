@@ -4,17 +4,18 @@ import { useUser, useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 
 interface MyEntry {
-  rank: number;
   displayName: string;
-  bestScore: number;
-  totalWins: number;
-  currentStreak: number;
-  bestStreak: number;
   dailyStreak: number;
+  rank: number | null;
+  bestScore: number | null;
+  totalWins: number | null;
+  currentStreak: number | null;
+  bestStreak: number | null;
 }
 
 interface GameResult {
   id: number;
+  unitFilter: string;
   score: number;
   guessesUsed: number;
   timeSeconds: number;
@@ -163,8 +164,8 @@ export default function ProfilePage() {
           <div>
             <h1 className="text-2xl font-extrabold text-white leading-tight">{displayName}</h1>
             {email && <p className="text-slate-400 text-sm mt-0.5">{email}</p>}
-            {entry && (
-              <p className="text-slate-500 text-xs mt-1">Rank #{entry.rank} on the leaderboard</p>
+            {entry && entry.rank !== null && (
+              <p className="text-slate-500 text-xs mt-1">Rank #{entry.rank} on the All Units leaderboard</p>
             )}
           </div>
         </motion.div>
@@ -175,21 +176,26 @@ export default function ProfilePage() {
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Stats</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <StatCard icon="🔥" label="Daily Streak" value={entry.dailyStreak} accent="border-orange-500/40" />
-              <StatCard icon="🏆" label="Win Streak" value={entry.currentStreak} accent="border-violet-500/40" />
-              <StatCard icon="🎯" label="Best Streak" value={entry.bestStreak} accent="border-violet-500/40" />
-              <StatCard icon="✓" label="Total Wins" value={entry.totalWins} accent="border-green-500/40" />
-              <StatCard icon="⭐" label="Best Score" value={entry.bestScore.toLocaleString()} accent="border-amber-500/40" />
-              <StatCard icon="📊" label="Leaderboard" value={`#${entry.rank}`} accent="border-pink-500/40" />
+              <StatCard icon="🏆" label="Win Streak" value={entry.currentStreak ?? "—"} accent="border-violet-500/40" />
+              <StatCard icon="🎯" label="Best Streak" value={entry.bestStreak ?? "—"} accent="border-violet-500/40" />
+              <StatCard icon="✓" label="Total Wins" value={entry.totalWins ?? "—"} accent="border-green-500/40" />
+              <StatCard icon="⭐" label="Best Score" value={entry.bestScore !== null ? entry.bestScore.toLocaleString() : "—"} accent="border-amber-500/40" />
+              <StatCard icon="📊" label="All Units Rank" value={entry.rank !== null ? `#${entry.rank}` : "—"} accent="border-pink-500/40" />
             </div>
+            {entry.bestScore === null && (
+              <p className="text-amber-400/80 text-xs mt-2 text-center">
+                Play with all 9 units active to appear on the main leaderboard!
+              </p>
+            )}
             <p className="text-slate-600 text-xs mt-2 text-center">
-              Daily streak resets if you skip a day. Score = (7 − guesses) × 1000 − seconds.
+              Daily streak resets if you skip a day · Score = (7 − guesses) × 1000 − seconds
             </p>
           </section>
         ) : (
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
             <p className="text-3xl mb-2">🎮</p>
             <p className="text-slate-300 font-semibold">No stats yet!</p>
-            <p className="text-slate-500 text-sm mt-1">Play a full game (all 9 units) to start tracking scores.</p>
+            <p className="text-slate-500 text-sm mt-1">Play a game with all 9 units or a single unit to start tracking scores.</p>
             <button
               onClick={() => setLocation("/")}
               className="mt-4 bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-300 hover:to-pink-300 text-slate-900 font-bold px-6 py-2 rounded-lg text-sm transition-colors"

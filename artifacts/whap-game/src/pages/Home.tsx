@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useUser, useClerk } from "@clerk/react";
+import { useUser } from "@clerk/react";
 import { useLocation } from "wouter";
 import { GAME_DATA, UNIT_LABELS } from "../data/gameData";
 import {
@@ -11,6 +11,19 @@ import {
 } from "../lib/gameLogic";
 
 const ALL_UNIT_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+const LB_TABS = [
+  { key: "all",    label: "All Units" },
+  { key: "unit_1", label: "Unit 1"    },
+  { key: "unit_2", label: "Unit 2"    },
+  { key: "unit_3", label: "Unit 3"    },
+  { key: "unit_4", label: "Unit 4"    },
+  { key: "unit_5", label: "Unit 5"    },
+  { key: "unit_6", label: "Unit 6"    },
+  { key: "unit_7", label: "Unit 7"    },
+  { key: "unit_8", label: "Unit 8"    },
+  { key: "unit_9", label: "Unit 9"    },
+];
 
 const UNIT_SHORT: Record<number, string> = {
   1: "Unit 1 – Global Tapestry",
@@ -50,14 +63,23 @@ const TYPE_SHORT: Record<string, string> = {
 function shortGeo(s: string) { return GEO_SHORT[s] ?? s; }
 function shortType(s: string) { return TYPE_SHORT[s] ?? s; }
 
-interface LeaderboardEntry {
+interface MyEntry {
+  displayName: string;
+  dailyStreak: number;
+  rank: number | null;
+  bestScore: number | null;
+  totalWins: number | null;
+  currentStreak: number | null;
+  bestStreak: number | null;
+}
+
+interface LbEntry {
   rank: number;
   displayName: string;
   bestScore: number;
   totalWins: number;
   currentStreak: number;
   bestStreak: number;
-  dailyStreak: number;
 }
 
 function cellColor(result: MatchResult) {
@@ -127,7 +149,7 @@ function GuessRow({
       transition={{ duration: 0.4 }}
       className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5"
     >
-      <div className="flex items-center bg-slate-700 border border-slate-600 rounded-md sm:rounded-lg px-1.5 sm:px-3 py-1.5 sm:py-2.5">
+      <div className="flex items-center bg-slate-700 border border-slate-600 rounded-md sm:rounded-lg px-1.5 sm:px-3 py-1 sm:py-2.5">
         <span className="text-white font-extrabold text-[10px] sm:text-sm leading-tight break-words min-w-0">
           {result.name}
         </span>
@@ -138,7 +160,7 @@ function GuessRow({
           initial={animate ? { scale: 0.8, opacity: 0 } : false}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.35, delay: 0.1 }}
-          className={`flex flex-col items-center justify-center rounded-md sm:rounded-lg border px-0.5 sm:px-2 py-1.5 sm:py-2.5 text-center ${cellColor(result[cell.key])}`}
+          className={`flex flex-col items-center justify-center rounded-md sm:rounded-lg border px-0.5 sm:px-2 py-1 sm:py-2.5 text-center ${cellColor(result[cell.key])}`}
         >
           <span className="text-xs sm:text-base font-bold leading-none">
             {cellIcon(result[cell.key])}
@@ -155,7 +177,7 @@ function GuessRow({
 
 function LegendBadge({ color, label }: { color: string; label: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold ${color}`}>
       {label}
     </span>
   );
@@ -163,7 +185,6 @@ function LegendBadge({ color, label }: { color: string; label: string }) {
 
 export default function Home() {
   const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
   const isSignedIn = isLoaded && !!user;
 
@@ -199,19 +220,22 @@ export default function Home() {
   const [finalScore, setFinalScore] = useState(0);
 
   // Leaderboard / account
-  const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
+  const [myEntry, setMyEntry] = useState<MyEntry | null>(null);
   const [myEntryLoaded, setMyEntryLoaded] = useState(false);
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [displayNameError, setDisplayNameError] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LbEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [lbFilter, setLbFilter] = useState<string>("all");
   const leaderboardUserRowRef = useRef<HTMLTableRowElement>(null);
 
-  // Pending game result to submit after display name is set
-  const pendingResultRef = useRef<{ won: boolean; score: number; guessesUsed: number; timeSeconds: number } | null>(null);
+  // Pending game result waiting for display name
+  const pendingResultRef = useRef<{
+    won: boolean; score: number; guessesUsed: number; timeSeconds: number; unitFilter: string;
+  } | null>(null);
 
   // Load user's leaderboard entry when signed in
   useEffect(() => {
@@ -266,14 +290,22 @@ export default function Home() {
     return () => { document.body.style.overflow = ""; };
   }, [showLeaderboard, showDisplayNamePrompt]);
 
+  // Determine which leaderboard filter applies to the current game
+  function getUnitFilter(): string | null {
+    if (selectedUnits.length === ALL_UNIT_NUMS.length) return "all";
+    if (selectedUnits.length === 1) return `unit_${selectedUnits[0]}`;
+    return null; // 2-8 units = practice mode
+  }
+
   async function apiSubmitScore(
-    didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number, termName?: string, displayName?: string
-  ): Promise<LeaderboardEntry | null> {
+    didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number,
+    unitFilter: string, termName?: string, displayName?: string,
+  ): Promise<MyEntry | null> {
     try {
       const res = await fetch("/api/leaderboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score: sc, guessesUsed, timeSeconds, won: didWin, termName, displayName }),
+        body: JSON.stringify({ score: sc, guessesUsed, timeSeconds, won: didWin, unitFilter, termName, displayName }),
       });
       if (res.status === 409) {
         const data = await res.json();
@@ -281,17 +313,20 @@ export default function Home() {
         return null;
       }
       if (!res.ok) return null;
-      return (await res.json()) as LeaderboardEntry;
+      return (await res.json()) as MyEntry;
     } catch {
       return null;
     }
   }
 
-  async function fetchLeaderboard() {
+  async function fetchLeaderboard(filter: string) {
     setLeaderboardLoading(true);
+    setLbFilter(filter);
     try {
-      const res = await fetch("/api/leaderboard");
-      setLeaderboard((await res.json()) as LeaderboardEntry[]);
+      const res = await fetch(`/api/leaderboard?filter=${encodeURIComponent(filter)}`);
+      if (!res.ok) { setLeaderboard([]); return; }
+      const data = await res.json();
+      setLeaderboard(Array.isArray(data) ? data : []);
     } catch {
       setLeaderboard([]);
     } finally {
@@ -300,8 +335,9 @@ export default function Home() {
   }
 
   function openLeaderboard() {
+    const gf = getUnitFilter() ?? "all";
     setShowLeaderboard(true);
-    fetchLeaderboard();
+    fetchLeaderboard(gf);
   }
 
   function toggleUnit(u: number) {
@@ -380,16 +416,14 @@ export default function Home() {
 
   function handleGameEnd(didWin: boolean, sc: number, guessesUsed: number, timeSeconds: number) {
     if (!isSignedIn) return;
-    // Only submit to leaderboard when all 9 units are active
-    if (selectedUnits.length !== ALL_UNIT_NUMS.length) return;
+    const unitFilter = getUnitFilter();
+    if (!unitFilter) return; // practice mode — no submission
     if (myEntry) {
-      // Already have a display name — auto-submit
-      apiSubmitScore(didWin, sc, guessesUsed, timeSeconds, answer.name).then((updated) => {
+      apiSubmitScore(didWin, sc, guessesUsed, timeSeconds, unitFilter, answer.name).then((updated) => {
         if (updated) setMyEntry(updated);
       });
     } else if (myEntryLoaded) {
-      // Signed in but no entry yet — need to collect display name first
-      pendingResultRef.current = { won: didWin, score: sc, guessesUsed, timeSeconds };
+      pendingResultRef.current = { won: didWin, score: sc, guessesUsed, timeSeconds, unitFilter };
       setTimeout(() => setShowDisplayNamePrompt(true), 900);
     }
   }
@@ -403,7 +437,10 @@ export default function Home() {
 
     const pending = pendingResultRef.current;
     if (pending) {
-      const result = await apiSubmitScore(pending.won, pending.score, pending.guessesUsed, pending.timeSeconds, answer.name, dn);
+      const result = await apiSubmitScore(
+        pending.won, pending.score, pending.guessesUsed, pending.timeSeconds,
+        pending.unitFilter, answer.name, dn,
+      );
       if (result) {
         setMyEntry(result);
         pendingResultRef.current = null;
@@ -449,6 +486,12 @@ export default function Home() {
   const remaining = MAX_GUESSES - guesses.length;
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+  // Computed for rendering
+  const unitFilter = getUnitFilter();
+  const isPracticeMode = unitFilter === null;
+  const isSingleUnit = selectedUnits.length === 1;
+  const myInitial = (myEntry?.displayName ?? user?.primaryEmailAddress?.emailAddress ?? "?")[0].toUpperCase();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
 
@@ -477,10 +520,10 @@ export default function Home() {
                 type="text"
                 value={displayNameInput}
                 onChange={(e) => { setDisplayNameInput(e.target.value); setDisplayNameError(""); }}
-                onKeyDown={(e) => e.key === "Enter" && handleSetDisplayName()}
-                placeholder="e.g. HistoryNerd42"
+                onKeyDown={(e) => { if (e.key === "Enter") handleSetDisplayName(); }}
+                placeholder="Your display name…"
                 maxLength={50}
-                className="w-full bg-slate-700 border border-slate-500 focus:border-violet-400 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 outline-none text-sm mb-2"
+                className="w-full bg-slate-700 border border-slate-600 focus:border-violet-400 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 outline-none text-sm mb-2"
                 autoFocus
               />
               {displayNameError && (
@@ -514,26 +557,56 @@ export default function Home() {
               className="bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-700 shrink-0">
                 <div>
                   <h2 className="text-lg font-extrabold text-white">🏆 Leaderboard</h2>
-                  <p className="text-slate-400 text-xs mt-0.5">Ranked by best single-game score</p>
+                  <p className="text-slate-400 text-xs mt-0.5">Top 50 per board · ranked by best score</p>
                 </div>
                 <button onClick={() => setShowLeaderboard(false)} className="text-slate-400 hover:text-white text-xl leading-none px-1">✕</button>
               </div>
 
+              {/* Filter tabs */}
+              <div className="flex gap-1.5 px-4 py-2.5 overflow-x-auto border-b border-slate-700 shrink-0 scrollbar-hide">
+                {LB_TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => fetchLeaderboard(tab.key)}
+                    className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                      lbFilter === tab.key
+                        ? "bg-violet-600 text-white"
+                        : "bg-slate-700 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               {/* My stats bar */}
               {isSignedIn && myEntry && (
-                <div className="px-5 py-3 bg-violet-900/30 border-b border-violet-700/40 shrink-0">
+                <div className="px-5 py-2.5 bg-violet-900/30 border-b border-violet-700/40 shrink-0">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-violet-300 font-bold text-sm">{myEntry.displayName}</span>
-                      <span className="text-slate-400 text-xs ml-2">#{myEntry.rank}</span>
+                      {myEntry.rank !== null && (
+                        <span className="text-slate-400 text-xs ml-2">#{myEntry.rank} All Units</span>
+                      )}
                     </div>
                     <div className="flex gap-4 text-center">
-                      <div><div className="text-green-300 font-bold text-sm">{myEntry.totalWins}</div><div className="text-slate-500 text-[10px]">Wins</div></div>
-                      <div><div className="text-amber-300 font-bold text-sm">{myEntry.bestScore.toLocaleString()}</div><div className="text-slate-500 text-[10px]">Best</div></div>
-                      <div><div className="text-orange-300 font-bold text-sm">🔥 {myEntry.currentStreak}</div><div className="text-slate-500 text-[10px]">Streak</div></div>
+                      <div>
+                        <div className="text-green-300 font-bold text-sm">{myEntry.totalWins ?? "—"}</div>
+                        <div className="text-slate-500 text-[10px]">Wins</div>
+                      </div>
+                      <div>
+                        <div className="text-amber-300 font-bold text-sm">
+                          {myEntry.bestScore !== null ? myEntry.bestScore.toLocaleString() : "—"}
+                        </div>
+                        <div className="text-slate-500 text-[10px]">Best</div>
+                      </div>
+                      <div>
+                        <div className="text-orange-300 font-bold text-sm">🔥 {myEntry.dailyStreak}</div>
+                        <div className="text-slate-500 text-[10px]">Daily</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -581,16 +654,16 @@ export default function Home() {
                             ref={isMe ? leaderboardUserRowRef : undefined}
                             className={`border-b border-slate-700/50 transition-colors ${isMe ? "bg-violet-900/30 border-l-2 border-l-violet-400" : "hover:bg-slate-700/30"}`}
                           >
-                            <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                            <td className="px-4 py-2.5 text-slate-400 text-xs font-mono">
                               {entry.rank <= 3 ? ["🥇","🥈","🥉"][entry.rank - 1] : entry.rank}
                             </td>
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-2.5">
                               <span className={`font-semibold ${isMe ? "text-violet-300" : "text-white"}`}>{entry.displayName}</span>
                               {isMe && <span className="ml-1.5 text-[10px] text-violet-400 font-bold">YOU</span>}
                             </td>
-                            <td className="px-2 py-3 text-right text-amber-300 font-bold font-mono">{entry.bestScore.toLocaleString()}</td>
-                            <td className="px-2 py-3 text-right text-green-300 font-medium">{entry.totalWins}</td>
-                            <td className="px-4 py-3 text-right text-orange-300 font-medium">
+                            <td className="px-2 py-2.5 text-right text-amber-300 font-bold font-mono">{entry.bestScore.toLocaleString()}</td>
+                            <td className="px-2 py-2.5 text-right text-green-300 font-medium">{entry.totalWins}</td>
+                            <td className="px-4 py-2.5 text-right text-orange-300 font-medium">
                               {entry.currentStreak > 0 ? `🔥 ${entry.currentStreak}` : "—"}
                             </td>
                           </tr>
@@ -608,82 +681,126 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* ── Header ── */}
+      {/* ── MOBILE Header (compact single row) ── */}
       <header className="border-b border-slate-700 bg-[#0a0e28] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 pt-1 pb-2 flex flex-col items-center gap-0.5">
+        {/* Mobile */}
+        <div className="sm:hidden flex items-center gap-2 px-3 py-2">
           <img
-            src={`${import.meta.env.BASE_URL}go-for-five.png`}
+            src={`${basePath}/go-for-five.png`}
             alt="Go For Five"
-            className="w-full max-w-lg h-auto"
-            style={{ maxHeight: "110px", objectFit: "contain" }}
+            className="h-9 w-auto shrink-0"
+            style={{ objectFit: "contain" }}
           />
-          <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
-            AP World History Review Game
-          </h1>
-          <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
-
-          {/* Stats row + Leaderboard + Auth */}
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap justify-center">
-            <div className="flex gap-5 text-center">
-              <div><div className="text-base font-bold text-green-300">{score.wins}</div><div className="text-xs text-slate-400">Won</div></div>
-              <div><div className="text-base font-bold text-red-400">{score.losses}</div><div className="text-xs text-slate-400">Lost</div></div>
-              <div><div className="text-base font-bold text-slate-300">{score.played}</div><div className="text-xs text-slate-400">Played</div></div>
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Session stats */}
+            <div className="flex gap-2 text-xs font-bold leading-none">
+              <span>
+                <span className="text-green-300">{score.wins}</span>
+                <span className="text-slate-500 font-normal">W</span>
+              </span>
+              <span>
+                <span className="text-red-400">{score.losses}</span>
+                <span className="text-slate-500 font-normal">L</span>
+              </span>
             </div>
+            {/* Leaderboard */}
             <button
               onClick={openLeaderboard}
-              className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
-            >
-              🏆 <span className="hidden sm:inline">Leaderboard</span>
-            </button>
-
-            {/* Auth buttons */}
+              className="p-1.5 bg-slate-700 hover:bg-violet-700 border border-slate-600 hover:border-violet-500 rounded-lg text-sm leading-none transition-colors"
+              aria-label="Leaderboard"
+            >🏆</button>
+            {/* Auth */}
             {isLoaded && !isSignedIn && (
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setLocation("/sign-in")}
-                  className="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => setLocation("/sign-up")}
-                  className="bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-400 hover:to-pink-400 rounded-lg px-3 py-1.5 text-xs font-bold text-white transition-colors"
-                >
-                  Sign Up
-                </button>
-              </div>
+              <button
+                onClick={() => setLocation("/sign-in")}
+                className="px-2.5 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-bold text-white transition-colors"
+              >
+                Sign In
+              </button>
             )}
             {isSignedIn && (
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLocation("/profile")}
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-sm font-extrabold text-white shrink-0 border-2 border-violet-400/50"
+                aria-label="My profile"
+              >
+                {myInitial}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden sm:block max-w-4xl mx-auto px-4 pt-1 pb-2">
+          <div className="flex flex-col items-center gap-0.5">
+            <img
+              src={`${basePath}/go-for-five.png`}
+              alt="Go For Five"
+              className="w-full max-w-lg h-auto"
+              style={{ maxHeight: "110px", objectFit: "contain" }}
+            />
+            <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
+              AP World History Review Game
+            </h1>
+            <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
+
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap justify-center">
+              <div className="flex gap-5 text-center">
+                <div><div className="text-base font-bold text-green-300">{score.wins}</div><div className="text-xs text-slate-400">Won</div></div>
+                <div><div className="text-base font-bold text-red-400">{score.losses}</div><div className="text-xs text-slate-400">Lost</div></div>
+                <div><div className="text-base font-bold text-slate-300">{score.played}</div><div className="text-xs text-slate-400">Played</div></div>
+              </div>
+              <button
+                onClick={openLeaderboard}
+                className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
+              >
+                🏆 Leaderboard
+              </button>
+              {isLoaded && !isSignedIn && (
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setLocation("/sign-in")}
+                    className="bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
+                  >Sign In</button>
+                  <button
+                    onClick={() => setLocation("/sign-up")}
+                    className="bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-400 hover:to-pink-400 rounded-lg px-3 py-1.5 text-xs font-bold text-white transition-colors"
+                  >Sign Up</button>
+                </div>
+              )}
+              {isSignedIn && (
                 <button
                   onClick={() => setLocation("/profile")}
                   className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
                 >
                   <span className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[10px] font-extrabold text-white shrink-0">
-                    {(myEntry?.displayName ?? user.primaryEmailAddress?.emailAddress ?? "?")[0].toUpperCase()}
+                    {myInitial}
                   </span>
-                  <span className="hidden sm:inline max-w-[80px] truncate">{myEntry?.displayName ?? "Profile"}</span>
+                  <span className="max-w-[80px] truncate">{myEntry?.displayName ?? "Profile"}</span>
                   {myEntry && myEntry.dailyStreak > 1 && (
                     <span className="text-orange-400">🔥{myEntry.dailyStreak}</span>
                   )}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* Unit Filter */}
-        <div className="mb-4 relative" ref={filterRef}>
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-6">
+
+        {/* ── Unit Filter ── */}
+        <div className="mb-3 sm:mb-4 relative" ref={filterRef}>
           <button
             onClick={() => setFilterOpen((o) => !o)}
-            className="flex items-center gap-2 bg-slate-800 border border-slate-600 hover:border-violet-400 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+            className="flex items-center gap-2 bg-slate-800 border border-slate-600 hover:border-violet-400 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white transition-colors"
           >
             <span>Filter by Unit</span>
             <span className="bg-slate-700 text-violet-300 text-xs px-2 py-0.5 rounded-full font-bold">
               {selectedUnits.length === 9 ? "All" : selectedUnits.length === 0 ? "None" : `${selectedUnits.length} / 9`}
             </span>
+            {isPracticeMode && <span className="text-amber-400 text-[10px] font-bold hidden sm:inline">Practice</span>}
+            {isSingleUnit && <span className="text-violet-400 text-[10px] font-bold hidden sm:inline">Unit {selectedUnits[0]} LB</span>}
             <span className="text-slate-400 text-xs ml-1">{filterOpen ? "▲" : "▼"}</span>
           </button>
 
@@ -697,6 +814,9 @@ export default function Home() {
                 <div className="flex gap-2 mb-3">
                   <button onClick={selectAllUnits} className="flex-1 text-xs font-semibold bg-slate-700 hover:bg-violet-700 text-white rounded-lg py-1.5 transition-colors">Select All</button>
                   <button onClick={clearAllUnits} className="flex-1 text-xs font-semibold bg-slate-700 hover:bg-red-700 text-white rounded-lg py-1.5 transition-colors">Clear All</button>
+                </div>
+                <div className="mb-2 text-[10px] text-slate-400 px-1">
+                  All 9 = main leaderboard · 1 unit = unit leaderboard · 2–8 = practice
                 </div>
                 <div className="space-y-1">
                   {ALL_UNIT_NUMS.map((u) => {
@@ -724,8 +844,16 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        {/* Instructions */}
-        <div className="mb-5 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+        {/* ── Instructions — desktop full, mobile legend-only ── */}
+        {/* Mobile legend */}
+        <div className="sm:hidden flex items-center gap-1.5 mb-2.5 flex-wrap">
+          <LegendBadge color="bg-green-300 text-slate-800" label="✓ Match" />
+          <LegendBadge color="bg-amber-200 text-slate-800" label="~ Close" />
+          <LegendBadge color="bg-red-400 text-slate-800" label="✗ Wrong" />
+          <span className="text-slate-500 text-[10px] ml-0.5">Unit ↑↓ = later/earlier</span>
+        </div>
+        {/* Desktop instructions */}
+        <div className="hidden sm:block mb-5 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
           <p className="text-slate-200 text-sm mb-3">
             Guess the hidden AP World History person, place, event, or concept in{" "}
             <span className="bg-gradient-to-r from-violet-300 to-pink-300 bg-clip-text text-transparent font-extrabold">{MAX_GUESSES} tries</span>.
@@ -738,10 +866,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Grid */}
-        <div className="mb-4 sm:overflow-x-auto sm:-mx-2 sm:px-2">
+        {/* ── Grid ── */}
+        <div className="mb-3 sm:mb-4 sm:overflow-x-auto sm:-mx-2 sm:px-2">
           <div className="sm:min-w-[480px]">
-            <div className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1.5 sm:mb-2">
+            {/* Column headers */}
+            <div className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-2">
               <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider px-1.5 sm:px-3 py-1">
                 <span className="sm:hidden">Guess</span><span className="hidden sm:inline">Your Guess</span>
               </div>
@@ -760,14 +889,14 @@ export default function Home() {
 
             {!gameOver && Array.from({ length: remaining }).map((_, i) => (
               <div key={`empty-${i}`} className="grid grid-cols-[1.7fr_1fr_1fr_1fr_0.85fr] sm:grid-cols-5 gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
-                <div className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />
-                {[0,1,2,3].map((j) => <div key={j} className={`h-9 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />)}
+                <div className={`h-8 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />
+                {[0,1,2,3].map((j) => <div key={j} className={`h-8 sm:h-12 rounded-md sm:rounded-lg border ${i === 0 ? "border-slate-500 bg-slate-800/50" : "border-slate-700 bg-slate-800/20"}`} />)}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Game Over Banner */}
+        {/* ── Game Over Banner ── */}
         <AnimatePresence>
           {showAnswer && (
             <motion.div
@@ -799,7 +928,7 @@ export default function Home() {
                     <div className="text-slate-200 font-bold text-base">{formatTime(finalTime)}</div>
                     <div className="text-slate-400 text-[10px] uppercase tracking-wider">Time</div>
                   </div>
-                  {myEntry && (
+                  {myEntry && myEntry.currentStreak !== null && (
                     <div className="bg-violet-900/50 border border-violet-600 rounded-lg px-3 py-1.5 text-center">
                       <div className="text-violet-300 font-extrabold text-base">🔥 {myEntry.currentStreak}</div>
                       <div className="text-slate-400 text-[10px] uppercase tracking-wider">Streak</div>
@@ -808,7 +937,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Sign-in nudge for guests */}
+              {/* Leaderboard submission note */}
               {!isSignedIn && (
                 <div className="my-2 text-xs text-slate-400">
                   <button onClick={() => setLocation("/sign-up")} className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">
@@ -816,10 +945,14 @@ export default function Home() {
                   </button>{" "}to save scores &amp; track your streak!
                 </div>
               )}
-              {/* Unit filter warning */}
-              {isSignedIn && selectedUnits.length !== ALL_UNIT_NUMS.length && (
+              {isSignedIn && isPracticeMode && (
                 <div className="my-2 px-3 py-1.5 bg-amber-900/40 border border-amber-600/50 rounded-lg text-xs text-amber-300">
-                  ⚠️ Score not saved — enable all 9 units for leaderboard play.
+                  🎯 Practice mode — select all 9 units or a single unit to submit to a leaderboard.
+                </div>
+              )}
+              {isSignedIn && isSingleUnit && (
+                <div className="my-2 px-3 py-1.5 bg-violet-900/40 border border-violet-600/50 rounded-lg text-xs text-violet-300">
+                  📊 Score saved to the Unit {selectedUnits[0]} leaderboard!
                 </div>
               )}
 
@@ -856,7 +989,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* Input Area */}
+        {/* ── Input Area ── */}
         {!gameOver && (
           <div className="relative flex-1">
             {noUnitsSelected ? (
@@ -880,8 +1013,8 @@ export default function Home() {
                         onKeyDown={handleKeyDown}
                         onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                        placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES} — type to search...`}
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors text-[16px]"
+                        placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES}…`}
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-white placeholder-slate-500 outline-none transition-colors text-[16px]"
                         autoCorrect="off" autoCapitalize="none" autoComplete="off" spellCheck={false}
                       />
                     </div>
@@ -898,7 +1031,7 @@ export default function Home() {
                   <button
                     onClick={() => submitGuess()}
                     disabled={!input.trim()}
-                    className="bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-slate-900 font-bold px-5 py-3 rounded-lg transition-all text-sm whitespace-nowrap"
+                    className="bg-gradient-to-r from-violet-300 to-pink-300 hover:from-violet-200 hover:to-pink-200 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-slate-900 font-bold px-4 sm:px-5 py-2.5 sm:py-3 rounded-lg transition-all text-sm whitespace-nowrap"
                   >
                     Guess
                   </button>
@@ -921,7 +1054,7 @@ export default function Home() {
 
         {/* Answer Reference */}
         {gameOver && (
-          <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+          <div className="mt-4 sm:mt-6 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wider">Answer Reference</h3>
             {answer.description && <p className="text-slate-200 text-sm mb-3 italic leading-relaxed">{answer.description}</p>}
             <div className="grid grid-cols-2 gap-2 text-sm">
