@@ -353,18 +353,18 @@ export default function Home() {
     const q = input.trim();
     if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
     const ql = q.toLowerCase();
-    const filtered = poolNames.filter((n) => n.toLowerCase().includes(ql) && !guessedNames.includes(n));
-    filtered.sort((a, b) => {
-      const al = a.toLowerCase(), bl = b.toLowerCase();
-      const aStarts = al.startsWith(ql), bStarts = bl.startsWith(ql);
-      if (aStarts !== bStarts) return aStarts ? -1 : 1;
-      const aWord = al.split(/\s+/).some((w) => w.startsWith(ql));
-      const bWord = bl.split(/\s+/).some((w) => w.startsWith(ql));
-      if (aWord !== bWord) return aWord ? -1 : 1;
-      return a.localeCompare(b);
-    });
-    setSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
+    const available = poolNames.filter((n) => !guessedNames.includes(n));
+    // Tier 1: full term starts with input
+    let results = available.filter((n) => n.toLowerCase().startsWith(ql));
+    // Tier 2: any word in the term starts with input
+    if (results.length === 0)
+      results = available.filter((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(ql)));
+    // Tier 3: input appears anywhere in the term
+    if (results.length === 0)
+      results = available.filter((n) => n.toLowerCase().includes(ql));
+    results.sort((a, b) => a.localeCompare(b));
+    setSuggestions(results);
+    setShowSuggestions(results.length > 0);
     setHighlightIdx(-1);
   }, [input]);
 
