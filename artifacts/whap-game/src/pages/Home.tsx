@@ -351,7 +351,7 @@ export default function Home() {
 
   useEffect(() => {
     const q = input.trim();
-    if (q.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
     const ql = q.toLowerCase();
     const available = poolNames.filter((n) => !guessedNames.includes(n));
     // Tier 1: full term starts with input
