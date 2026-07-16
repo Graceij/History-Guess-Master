@@ -1,0 +1,2 @@
+- [Multi-leaderboard schema](multi-leaderboard.md) — separate leaderboard_scores table (clerk_user_id + unit_filter composite PK); leaderboard_users is identity-only now.
+- [Leaderboard submission rules](leaderboard-submission.md) — 9 units→'all' board, 1 unit→'unit_N' board, 2-8 units→practice mode (no submission).
