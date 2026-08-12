@@ -212,35 +212,44 @@ router.post("/leaderboard", requireAuth, async (req: any, res) => {
       ))
       .limit(1);
 
-    const prevWon = existingScore?.lastResultWon ?? false;
     const prevStreak = existingScore?.currentStreak ?? 0;
+    const prevStreakScore = existingScore?.currentStreakScore ?? 0;
+
+    // currentStreakScore: accumulate scores for consecutive wins; reset on loss
     const newCurrentStreak = won ? prevStreak + 1 : 0;
+    const newCurrentStreakScore = won ? prevStreakScore + score : 0;
+
     const newBestStreak = won
       ? Math.max(existingScore?.bestStreak ?? 0, newCurrentStreak)
       : (existingScore?.bestStreak ?? 0);
+
+    // bestScore = best cumulative consecutive-win total ever achieved
+    const newBestScore = won
+      ? Math.max(existingScore?.bestScore ?? 0, newCurrentStreakScore)
+      : (existingScore?.bestScore ?? 0);
 
     await db
       .insert(leaderboardScoresTable)
       .values({
         clerkUserId,
         unitFilter,
-        bestScore: won ? score : 0,
+        bestScore: newBestScore,
         totalWins: won ? 1 : 0,
         currentStreak: newCurrentStreak,
         bestStreak: newBestStreak,
+        currentStreakScore: newCurrentStreakScore,
         lastResultWon: won,
       })
       .onConflictDoUpdate({
         target: [leaderboardScoresTable.clerkUserId, leaderboardScoresTable.unitFilter],
         set: {
-          bestScore: won
-            ? sql`GREATEST(${leaderboardScoresTable.bestScore}, ${score})`
-            : leaderboardScoresTable.bestScore,
+          bestScore: newBestScore,
           totalWins: won
             ? sql`${leaderboardScoresTable.totalWins} + 1`
             : leaderboardScoresTable.totalWins,
           currentStreak: newCurrentStreak,
           bestStreak: newBestStreak,
+          currentStreakScore: newCurrentStreakScore,
           lastResultWon: won,
           updatedAt: sql`NOW()`,
         },

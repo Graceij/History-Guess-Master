@@ -11,30 +11,33 @@ export interface GuessResult {
   unitDirection?: "higher" | "lower" | null;
 }
 
-// Geographic proximity groupings
+// Geographic proximity groupings (updated for new specific regions)
 const GEO_GROUPS: Record<string, string[]> = {
-  "North America": ["North America", "Central America/Caribbean", "South America"],
-  "Central America/Caribbean": ["Central America/Caribbean", "North America", "South America"],
-  "South America": ["South America", "Central America/Caribbean", "North America"],
-  "Europe": ["Europe", "Middle East"],
-  "Middle East": ["Middle East", "Europe", "Africa", "Asia"],
-  "Asia": ["Asia", "Middle East"],
-  "Africa": ["Africa", "Middle East"],
-  "Global": ["Global"],
+  "North America":          ["North America", "Latin America/Caribbean"],
+  "Latin America/Caribbean":["Latin America/Caribbean", "North America"],
+  "Europe":                 ["Europe", "Middle East"],
+  "Middle East":            ["Middle East", "Europe", "Africa", "Central Asia"],
+  "Africa":                 ["Africa", "Middle East"],
+  "Central Asia":           ["Central Asia", "Middle East", "East Asia", "South Asia"],
+  "East Asia":              ["East Asia", "Southeast Asia", "Central Asia"],
+  "Southeast Asia":         ["Southeast Asia", "East Asia", "South Asia"],
+  "South Asia":             ["South Asia", "Southeast Asia", "Central Asia"],
+  "Oceania":                ["Oceania", "Southeast Asia"],
+  "Global":                 ["Global"],
 };
 
 // Religion proximity groupings
 const RELIGION_GROUPS: Record<string, string[]> = {
-  "Christianity": ["Christianity", "Judaism", "Islam"],
-  "Islam": ["Islam", "Christianity", "Judaism"],
-  "Judaism": ["Judaism", "Christianity", "Islam"],
-  "Buddhism": ["Buddhism", "Hinduism", "Sikhism", "Confucianism"],
-  "Hinduism": ["Hinduism", "Buddhism", "Sikhism"],
-  "Sikhism": ["Sikhism", "Hinduism", "Buddhism"],
-  "Confucianism": ["Confucianism", "Buddhism"],
-  "Animism": ["Animism", "Polytheistic"],
-  "Polytheistic": ["Polytheistic", "Animism"],
-  "NA": ["NA"],
+  "Christianity":  ["Christianity", "Judaism", "Islam"],
+  "Islam":         ["Islam", "Christianity", "Judaism"],
+  "Judaism":       ["Judaism", "Christianity", "Islam"],
+  "Buddhism":      ["Buddhism", "Hinduism", "Sikhism", "Confucianism"],
+  "Hinduism":      ["Hinduism", "Buddhism", "Sikhism"],
+  "Sikhism":       ["Sikhism", "Hinduism", "Buddhism"],
+  "Confucianism":  ["Confucianism", "Buddhism"],
+  "Animism":       ["Animism", "Polytheistic"],
+  "Polytheistic":  ["Polytheistic", "Animism"],
+  "NA":            ["NA"],
 };
 
 export function evaluateGuess(guess: GameEntry, answer: GameEntry): GuessResult {
@@ -57,12 +60,12 @@ export function evaluateGuess(guess: GameEntry, answer: GameEntry): GuessResult 
   } else {
     const group = GEO_GROUPS[answer.geographicArea] || [answer.geographicArea];
     if (group.includes(guess.geographicArea)) geographicArea = "close";
-    // Also "Global" overlaps with everything
+    // "Global" is considered close to everything
     if (guess.geographicArea === "Global" || answer.geographicArea === "Global") {
       geographicArea = "close";
     }
   }
-  // Still exact match wins even after Global check
+  // Exact match always wins
   if (guess.geographicArea === answer.geographicArea) geographicArea = "correct";
 
   // Unit: exact → correct; within 1 unit → close; else wrong + direction hint
