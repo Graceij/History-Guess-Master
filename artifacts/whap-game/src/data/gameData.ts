@@ -11,8 +11,8 @@ export interface GameEntry {
 
 export const GAME_DATA: GameEntry[] = [
   { id: 1, name: 'Adam Smith', whatIsIt: 'People', religion: 'NA', geographicArea: 'Europe', unit: 'Revolutions', unitNum: 5, description: 'Economist who advocated free markets and limited government intervention.' },
-  { id: 2, name: 'Adolf Hitler', whatIsIt: 'Innovation', religion: 'NA', geographicArea: 'Europe', unit: 'Global Conflict', unitNum: 7, description: 'Nazi dictator of Germany responsible for World War II and the Holocaust.' },
-  { id: 3, name: 'Airplane', whatIsIt: 'People', religion: 'NA', geographicArea: 'Global', unit: 'Globalization', unitNum: 9, description: 'Aircraft that revolutionized transportation and global connectivity.' },
+  { id: 2, name: 'Adolf Hitler', whatIsIt: 'People', religion: 'NA', geographicArea: 'Europe', unit: 'Global Conflict', unitNum: 7, description: 'Nazi dictator of Germany responsible for World War II and the Holocaust.' },
+  { id: 3, name: 'Airplane', whatIsIt: 'Innovation', religion: 'NA', geographicArea: 'Global', unit: 'Globalization', unitNum: 9, description: 'Aircraft that revolutionized transportation and global connectivity.' },
   { id: 4, name: 'Akbar', whatIsIt: 'States & Organizations', religion: 'Islam', geographicArea: 'South Asia', unit: 'Land Based Empires', unitNum: 3, description: 'Mughal ruler known for religious tolerance and administrative reforms.' },
   { id: 5, name: 'Al-Qaeda', whatIsIt: 'Events & Movements', religion: 'Islam', geographicArea: 'Middle East', unit: 'Globalization', unitNum: 9, description: 'Islamist terrorist organization responsible for numerous attacks worldwide, including September 11th.' },
   { id: 6, name: 'American Revolution', whatIsIt: 'Places & Networks', religion: 'NA', geographicArea: 'North America', unit: 'Revolutions', unitNum: 5, description: 'Colonial revolt that established the United States as an independent nation.' },
