@@ -356,29 +356,42 @@ export default function Home() {
   function clearAllUnits() { setSelectedUnits([]); }
 
   const guessedNames = guesses.map((g) => g.name);
-  const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
+  // Full alphabetical list of unguessed terms — always shown in the dropdown
+  const allSortedNames = filteredPool
+    .map((e) => e.name)
+    .filter((n) => !guessedNames.includes(n))
+    .sort((a, b) => a.localeCompare(b));
+
+  // Find the best match index for auto-scroll + keyboard highlight
+  const bestMatchIdx = (() => {
+    const q = input.trim().toLowerCase();
+    if (!q) return -1;
+    // Tier 1: starts with input
+    let idx = allSortedNames.findIndex((n) => n.toLowerCase().startsWith(q));
+    if (idx >= 0) return idx;
+    // Tier 2: any word starts with input
+    idx = allSortedNames.findIndex((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)));
+    if (idx >= 0) return idx;
+    // Tier 3: contains input anywhere
+    idx = allSortedNames.findIndex((n) => n.toLowerCase().includes(q));
+    return idx;
+  })();
+
+  const scrollTargetRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const q = input.trim();
-    if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
-    const ql = q.toLowerCase();
-    const available = poolNames.filter((n) => !guessedNames.includes(n));
+    if (q.length === 0) { setShowSuggestions(false); setHighlightIdx(-1); return; }
+    setShowSuggestions(true);
+    setHighlightIdx(bestMatchIdx);
+  }, [input, bestMatchIdx]);
 
-    // Tier 1: full term starts with input (e.g. "s" → all S words)
-    let results = available.filter((n) => n.toLowerCase().startsWith(ql));
-    // Tier 2: any word in the term starts with input (e.g. "mar" → Martin Luther)
-    if (results.length === 0)
-      results = available.filter((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(ql)));
-    // Tier 3: input appears anywhere (e.g. "ase" → ASEAN)
-    if (results.length === 0)
-      results = available.filter((n) => n.toLowerCase().includes(ql));
-
-    // Always alphabetical
-    results.sort((a, b) => a.localeCompare(b));
-    setSuggestions(results);
-    setShowSuggestions(results.length > 0);
-    setHighlightIdx(results.length > 0 ? 0 : -1);
-  }, [input]);
+  // Auto-scroll the dropdown to the best match whenever it changes
+  useEffect(() => {
+    if (showSuggestions && scrollTargetRef.current) {
+      scrollTargetRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [bestMatchIdx, showSuggestions]);
 
   function selectSuggestion(name: string) {
     setInput(name);
@@ -471,10 +484,10 @@ export default function Home() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (showSuggestions && suggestions.length > 0) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, suggestions.length - 1)); return; }
+    if (showSuggestions && allSortedNames.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, allSortedNames.length - 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx((i) => Math.max(i - 1, -1)); return; }
-      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(suggestions[highlightIdx]); return; }
+      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(allSortedNames[highlightIdx]); return; }
       if (e.key === "Escape") { setShowSuggestions(false); return; }
     }
     if (e.key === "Enter") { e.preventDefault(); submitGuess(); }
@@ -1045,10 +1058,13 @@ export default function Home() {
                         autoCorrect="off" autoCapitalize="none" autoComplete="off" spellCheck={false}
                       />
                     </div>
-                    {showSuggestions && suggestions.length > 0 && (
+                    {showSuggestions && allSortedNames.length > 0 && (
                       <div ref={dropdownRef} className="absolute z-20 bottom-full left-0 right-0 mb-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-60">
-                        {suggestions.map((s, i) => (
-                          <button key={s} onMouseDown={() => selectSuggestion(s)}
+                        {allSortedNames.map((s, i) => (
+                          <button
+                            key={s}
+                            ref={i === bestMatchIdx ? scrollTargetRef : undefined}
+                            onMouseDown={() => selectSuggestion(s)}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${i === highlightIdx ? "bg-amber-500 text-slate-900 font-semibold" : "text-slate-200 hover:bg-slate-700"}`}
                           >{s}</button>
                         ))}
