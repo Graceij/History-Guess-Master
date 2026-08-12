@@ -356,36 +356,29 @@ export default function Home() {
   function clearAllUnits() { setSelectedUnits([]); }
 
   const guessedNames = guesses.map((g) => g.name);
-  // All unguessed pool terms sorted alphabetically — shown in the dropdown
-  const allSortedNames = filteredPool
-    .map((e) => e.name)
-    .filter((n) => !guessedNames.includes(n))
-    .sort((a, b) => a.localeCompare(b));
-
-  // Index of the first term whose name contains the current input (for auto-scroll)
-  const firstMatchIdx = (() => {
-    const q = input.trim().toLowerCase();
-    if (!q) return -1;
-    return allSortedNames.findIndex((n) => n.toLowerCase().includes(q));
-  })();
-
-  // Ref for the auto-scroll target inside the dropdown
-  const matchItemRef = useRef<HTMLButtonElement>(null);
+  const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
 
   useEffect(() => {
     const q = input.trim();
-    if (q.length === 0) { setShowSuggestions(false); setHighlightIdx(-1); return; }
-    setShowSuggestions(true);
-    // Default keyboard selection to first match
-    setHighlightIdx(firstMatchIdx >= 0 ? firstMatchIdx : -1);
-  }, [input, firstMatchIdx]);
+    if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
+    const ql = q.toLowerCase();
+    const available = poolNames.filter((n) => !guessedNames.includes(n));
 
-  // Scroll to the first matching item whenever it changes
-  useEffect(() => {
-    if (showSuggestions && matchItemRef.current) {
-      matchItemRef.current.scrollIntoView({ block: "nearest" });
-    }
-  }, [firstMatchIdx, showSuggestions]);
+    // Tier 1: full term starts with input (e.g. "s" → all S words)
+    let results = available.filter((n) => n.toLowerCase().startsWith(ql));
+    // Tier 2: any word in the term starts with input (e.g. "mar" → Martin Luther)
+    if (results.length === 0)
+      results = available.filter((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(ql)));
+    // Tier 3: input appears anywhere (e.g. "ase" → ASEAN)
+    if (results.length === 0)
+      results = available.filter((n) => n.toLowerCase().includes(ql));
+
+    // Always alphabetical
+    results.sort((a, b) => a.localeCompare(b));
+    setSuggestions(results);
+    setShowSuggestions(results.length > 0);
+    setHighlightIdx(results.length > 0 ? 0 : -1);
+  }, [input]);
 
   function selectSuggestion(name: string) {
     setInput(name);
@@ -478,10 +471,10 @@ export default function Home() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (showSuggestions && allSortedNames.length > 0) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, allSortedNames.length - 1)); return; }
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, suggestions.length - 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx((i) => Math.max(i - 1, -1)); return; }
-      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(allSortedNames[highlightIdx]); return; }
+      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(suggestions[highlightIdx]); return; }
       if (e.key === "Escape") { setShowSuggestions(false); return; }
     }
     if (e.key === "Enter") { e.preventDefault(); submitGuess(); }
@@ -1052,36 +1045,13 @@ export default function Home() {
                         autoCorrect="off" autoCapitalize="none" autoComplete="off" spellCheck={false}
                       />
                     </div>
-                    {showSuggestions && allSortedNames.length > 0 && (
+                    {showSuggestions && suggestions.length > 0 && (
                       <div ref={dropdownRef} className="absolute z-20 bottom-full left-0 right-0 mb-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-60">
-                        {allSortedNames.map((s, i) => {
-                          const q = input.trim().toLowerCase();
-                          const idx = q ? s.toLowerCase().indexOf(q) : -1;
-                          const isMatch = idx >= 0;
-                          const isHighlighted = i === highlightIdx;
-                          return (
-                            <button
-                              key={s}
-                              ref={i === firstMatchIdx ? matchItemRef : undefined}
-                              onMouseDown={() => selectSuggestion(s)}
-                              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                isHighlighted
-                                  ? "bg-amber-500 text-slate-900 font-semibold"
-                                  : isMatch
-                                    ? "text-white hover:bg-slate-700"
-                                    : "text-slate-500 hover:bg-slate-700/50"
-                              }`}
-                            >
-                              {isMatch && !isHighlighted ? (
-                                <>
-                                  <span>{s.slice(0, idx)}</span>
-                                  <span className="bg-amber-400/30 text-amber-200 rounded-sm">{s.slice(idx, idx + q.length)}</span>
-                                  <span>{s.slice(idx + q.length)}</span>
-                                </>
-                              ) : s}
-                            </button>
-                          );
-                        })}
+                        {suggestions.map((s, i) => (
+                          <button key={s} onMouseDown={() => selectSuggestion(s)}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${i === highlightIdx ? "bg-amber-500 text-slate-900 font-semibold" : "text-slate-200 hover:bg-slate-700"}`}
+                          >{s}</button>
+                        ))}
                       </div>
                     )}
                   </div>
