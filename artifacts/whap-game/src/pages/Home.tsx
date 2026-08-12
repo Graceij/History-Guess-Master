@@ -39,8 +39,8 @@ const UNIT_SHORT: Record<number, string> = {
 
 const MAX_GUESSES = 7;
 
-const COL_HEADERS = ["What is it?", "Religion", "Geographic Area", "Unit"];
-const COL_HEADERS_SHORT = ["Type", "Faith", "Area", "Unit"];
+const COL_HEADERS = ["Category", "Religion", "Region", "Unit"];
+const COL_HEADERS_SHORT = ["Type", "Faith", "Region", "Unit"];
 const COL_KEYS: (keyof Omit<GuessResult, "name" | "unitDirection">)[] = [
   "whatIsIt",
   "religion",
@@ -49,16 +49,24 @@ const COL_KEYS: (keyof Omit<GuessResult, "name" | "unitDirection">)[] = [
 ];
 
 const GEO_SHORT: Record<string, string> = {
-  "Central America/Caribbean": "C. Am.",
-  "North America": "N. Am.",
-  "South America": "S. Am.",
-  "Middle East": "M. East",
+  "Latin America/Caribbean": "Lat. Am.",
+  "North America":           "N. Am.",
+  "South Asia":              "S. Asia",
+  "East Asia":               "E. Asia",
+  "Southeast Asia":          "SE Asia",
+  "Central Asia":            "C. Asia",
+  "Middle East":             "M. East",
 };
 const TYPE_SHORT: Record<string, string> = {
-  "Ideological Concept": "Ideology",
-  "Physical Concept": "Concept",
-  "Ruling Powers": "Rulers",
-  Innovation: "Tech",
+  "Beliefs, Ideas & Concepts": "Beliefs",
+  "Economics, Trade & Labor":  "Econ.",
+  "Environmental":             "Enviro.",
+  "Events & Movements":        "Events",
+  "Innovation":                "Innov.",
+  "People":                    "People",
+  "Places & Networks":         "Places",
+  "Society & Culture":         "Culture",
+  "States & Organizations":    "States",
 };
 function shortGeo(s: string) { return GEO_SHORT[s] ?? s; }
 function shortType(s: string) { return TYPE_SHORT[s] ?? s; }
@@ -213,9 +221,10 @@ export default function Home() {
   const answerBannerRef = useRef<HTMLDivElement>(null);
   const playedIds = useRef<number[]>([]);
 
-  // Timer
+  // Timer — only starts when user begins typing
   const gameStartTimeRef = useRef<number>(Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
 
@@ -246,14 +255,14 @@ export default function Home() {
       .catch(() => { setMyEntry(null); setMyEntryLoaded(true); });
   }, [isSignedIn]);
 
-  // Timer tick
+  // Timer tick — only runs after user types first character
   useEffect(() => {
-    if (gameOver) return;
+    if (gameOver || !timerActive) return;
     const interval = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - gameStartTimeRef.current) / 1000));
     }, 500);
     return () => clearInterval(interval);
-  }, [gameOver]);
+  }, [gameOver, timerActive]);
 
   // Scroll banner into view on game over
   useEffect(() => {
@@ -347,31 +356,40 @@ export default function Home() {
   function clearAllUnits() { setSelectedUnits([]); }
 
   const guessedNames = guesses.map((g) => g.name);
-  const poolNames = filteredPool.map((e) => e.name).sort((a, b) => a.localeCompare(b));
+  // All unguessed pool terms sorted alphabetically — shown in the dropdown
+  const allSortedNames = filteredPool
+    .map((e) => e.name)
+    .filter((n) => !guessedNames.includes(n))
+    .sort((a, b) => a.localeCompare(b));
+
+  // Index of the first term whose name contains the current input (for auto-scroll)
+  const firstMatchIdx = (() => {
+    const q = input.trim().toLowerCase();
+    if (!q) return -1;
+    return allSortedNames.findIndex((n) => n.toLowerCase().includes(q));
+  })();
+
+  // Ref for the auto-scroll target inside the dropdown
+  const matchItemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const q = input.trim();
-    if (q.length === 0) { setSuggestions([]); setShowSuggestions(false); return; }
-    const ql = q.toLowerCase();
-    const available = poolNames.filter((n) => !guessedNames.includes(n));
-    // Tier 1: full term starts with input
-    let results = available.filter((n) => n.toLowerCase().startsWith(ql));
-    // Tier 2: any word in the term starts with input
-    if (results.length === 0)
-      results = available.filter((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(ql)));
-    // Tier 3: input appears anywhere in the term
-    if (results.length === 0)
-      results = available.filter((n) => n.toLowerCase().includes(ql));
-    results.sort((a, b) => a.localeCompare(b));
-    setSuggestions(results);
-    setShowSuggestions(results.length > 0);
-    setHighlightIdx(-1);
-  }, [input]);
+    if (q.length === 0) { setShowSuggestions(false); setHighlightIdx(-1); return; }
+    setShowSuggestions(true);
+    // Default keyboard selection to first match
+    setHighlightIdx(firstMatchIdx >= 0 ? firstMatchIdx : -1);
+  }, [input, firstMatchIdx]);
+
+  // Scroll to the first matching item whenever it changes
+  useEffect(() => {
+    if (showSuggestions && matchItemRef.current) {
+      matchItemRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [firstMatchIdx, showSuggestions]);
 
   function selectSuggestion(name: string) {
     setInput(name);
     setShowSuggestions(false);
-    setSuggestions([]);
     inputRef.current?.focus();
   }
 
@@ -460,10 +478,10 @@ export default function Home() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (showSuggestions && suggestions.length > 0) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, suggestions.length - 1)); return; }
+    if (showSuggestions && allSortedNames.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(i + 1, allSortedNames.length - 1)); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx((i) => Math.max(i - 1, -1)); return; }
-      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(suggestions[highlightIdx]); return; }
+      if (e.key === "Enter" && highlightIdx >= 0) { e.preventDefault(); selectSuggestion(allSortedNames[highlightIdx]); return; }
       if (e.key === "Escape") { setShowSuggestions(false); return; }
     }
     if (e.key === "Enter") { e.preventDefault(); submitGuess(); }
@@ -477,7 +495,6 @@ export default function Home() {
     setGuesses([]);
     setGuessEntries([]);
     setInput("");
-    setSuggestions([]);
     setShowSuggestions(false);
     setGameOver(false);
     setWon(false);
@@ -487,6 +504,7 @@ export default function Home() {
     setFinalTime(0);
     setFinalScore(0);
     setElapsedSeconds(0);
+    setTimerActive(false);
     gameStartTimeRef.current = Date.now();
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
   }
@@ -1017,22 +1035,53 @@ export default function Home() {
                         ref={inputRef}
                         type="text"
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInput(val);
+                          // Start timer on very first character typed
+                          if (!timerActive && val.trim()) {
+                            gameStartTimeRef.current = Date.now();
+                            setTimerActive(true);
+                          }
+                        }}
                         onKeyDown={handleKeyDown}
-                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                        onFocus={() => input.trim() && setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                         placeholder={`Guess ${guesses.length + 1} of ${MAX_GUESSES}…`}
                         className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-white placeholder-slate-500 outline-none transition-colors text-[16px]"
                         autoCorrect="off" autoCapitalize="none" autoComplete="off" spellCheck={false}
                       />
                     </div>
-                    {showSuggestions && suggestions.length > 0 && (
+                    {showSuggestions && allSortedNames.length > 0 && (
                       <div ref={dropdownRef} className="absolute z-20 bottom-full left-0 right-0 mb-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-60">
-                        {suggestions.map((s, i) => (
-                          <button key={s} onMouseDown={() => selectSuggestion(s)}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${i === highlightIdx ? "bg-amber-500 text-slate-900 font-semibold" : "text-slate-200 hover:bg-slate-700"}`}
-                          >{s}</button>
-                        ))}
+                        {allSortedNames.map((s, i) => {
+                          const q = input.trim().toLowerCase();
+                          const idx = q ? s.toLowerCase().indexOf(q) : -1;
+                          const isMatch = idx >= 0;
+                          const isHighlighted = i === highlightIdx;
+                          return (
+                            <button
+                              key={s}
+                              ref={i === firstMatchIdx ? matchItemRef : undefined}
+                              onMouseDown={() => selectSuggestion(s)}
+                              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                isHighlighted
+                                  ? "bg-amber-500 text-slate-900 font-semibold"
+                                  : isMatch
+                                    ? "text-white hover:bg-slate-700"
+                                    : "text-slate-500 hover:bg-slate-700/50"
+                              }`}
+                            >
+                              {isMatch && !isHighlighted ? (
+                                <>
+                                  <span>{s.slice(0, idx)}</span>
+                                  <span className="bg-amber-400/30 text-amber-200 rounded-sm">{s.slice(idx, idx + q.length)}</span>
+                                  <span>{s.slice(idx + q.length)}</span>
+                                </>
+                              ) : s}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
