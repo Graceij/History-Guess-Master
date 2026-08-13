@@ -370,7 +370,7 @@ export default function Home() {
     let idx = allSortedNames.findIndex((n) => n.toLowerCase().startsWith(q));
     if (idx >= 0) return idx;
     // Tier 2: any word starts with input
-    idx = allSortedNames.findIndex((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)));
+    idx = allSortedNames.findIndex((n) => n.toLowerCase().split(/\s+/).some((w: string) => w.startsWith(q)));
     if (idx >= 0) return idx;
     // Tier 3: contains input anywhere
     idx = allSortedNames.findIndex((n) => n.toLowerCase().includes(q));
