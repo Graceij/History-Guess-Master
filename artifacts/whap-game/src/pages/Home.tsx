@@ -1113,7 +1113,7 @@ export default function Home() {
         <p className="text-center text-slate-600 text-xs mt-8">
           Scholle's AP World History Challenge — Designed by Grace Ji — Dawson HS, Pearland ISD
           <br />
-          <a href="mailto:goforfivehistory@gmail.com" className="hover:text-slate-400 transition-colors">
+          Questions or comments? <a href="mailto:goforfivehistory@gmail.com" className="hover:text-slate-400 transition-colors">
             goforfivehistory@gmail.com
           </a>
         </p>
