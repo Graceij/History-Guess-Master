@@ -1,4 +1,4 @@
-import { GameEntry } from "../data/gameData";
+import type { GameEntry } from "../data/gameData";
 
 export type MatchResult = "correct" | "close" | "wrong";
 
