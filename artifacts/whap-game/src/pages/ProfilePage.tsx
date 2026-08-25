@@ -24,6 +24,26 @@ interface GameResult {
   playedAt: string;
 }
 
+interface MapStats {
+  rank: number | null;
+  bestScore: number;
+  totalGames: number;
+  totalWins: number;
+  totalLosses: number;
+  currentStreak: number;
+  bestStreak: number;
+}
+
+interface MapGameResult {
+  id: number;
+  period: string;
+  score: number;
+  strikes: number;
+  timeSeconds: number;
+  won: boolean;
+  playedAt: string;
+}
+
 function formatTime(secs: number) {
   const m = Math.floor(secs / 60);
   const s = secs % 60;
@@ -60,6 +80,8 @@ export default function ProfilePage() {
 
   const [entry, setEntry] = useState<MyEntry | null>(null);
   const [games, setGames] = useState<GameResult[]>([]);
+  const [mapStats, setMapStats] = useState<MapStats | null>(null);
+  const [mapGames, setMapGames] = useState<MapGameResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [newName, setNewName] = useState("");
@@ -76,12 +98,18 @@ export default function ProfilePage() {
     Promise.all([
       fetch("/api/me/leaderboard").then((r) => r.json()),
       fetch("/api/me/games").then((r) => r.json()),
-    ]).then(([entryData, gamesData]) => {
+      fetch("/api/me/map-stats").then((r) => r.json()),
+      fetch("/api/me/map-games").then((r) => r.json()),
+    ]).then(([entryData, gamesData, mapStatsData, mapGamesData]) => {
       setEntry(entryData);
       setGames(Array.isArray(gamesData) ? gamesData : []);
+      setMapStats(mapStatsData);
+      setMapGames(Array.isArray(mapGamesData) ? mapGamesData : []);
     }).catch(() => {
       setEntry(null);
       setGames([]);
+      setMapStats(null);
+      setMapGames([]);
     }).finally(() => setLoading(false));
   }, [isLoaded, user]);
 
@@ -194,8 +222,8 @@ export default function ProfilePage() {
         ) : (
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
             <p className="text-3xl mb-2">🎮</p>
-            <p className="text-slate-300 font-semibold">No stats yet!</p>
-            <p className="text-slate-500 text-sm mt-1">Play a game with all 9 units or a single unit to start tracking scores.</p>
+            <p className="text-slate-300 font-semibold">No Go For Five stats yet!</p>
+            <p className="text-slate-500 text-sm mt-1">Play the original game with all 9 units or a single unit to start tracking those scores. Map Challenge stats are tracked separately below.</p>
             <button
               onClick={() => setLocation("/")}
               className="mt-4 bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-300 hover:to-pink-300 text-slate-900 font-bold px-6 py-2 rounded-lg text-sm transition-colors"
@@ -204,6 +232,34 @@ export default function ProfilePage() {
             </button>
           </div>
         )}
+
+        {/* Map Challenge stats */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Map Challenge</h2>
+            <button onClick={() => setLocation("/map")} className="text-xs font-bold text-amber-300 hover:text-amber-200">Play Map Challenge →</button>
+          </div>
+          {mapStats ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <StatCard icon="🗺️" label="Map Rounds" value={mapStats.totalGames} accent="border-sky-500/40" />
+                <StatCard icon="✓" label="Map Wins" value={mapStats.totalWins} accent="border-green-500/40" />
+                <StatCard icon="✕" label="Map Losses" value={mapStats.totalLosses} accent="border-red-500/40" />
+                <StatCard icon="🔥" label="Current Streak" value={mapStats.currentStreak} accent="border-amber-500/40" />
+                <StatCard icon="🏆" label="Best Streak" value={mapStats.bestStreak} accent="border-amber-500/40" />
+                <StatCard icon="⭐" label="Map Best Score" value={mapStats.bestScore.toLocaleString()} accent="border-amber-500/40" />
+              </div>
+              <p className="mt-2 text-center text-xs text-slate-600">
+                {mapStats.rank ? `All-period map rank: #${mapStats.rank} · ` : ""}Best score is your highest cumulative winning-streak score.
+              </p>
+            </>
+          ) : (
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 text-center">
+              <p className="text-sm font-semibold text-slate-300">No map rounds saved yet.</p>
+              <p className="mt-1 text-xs text-slate-500">Complete a Map Challenge round while signed in to start tracking this game separately.</p>
+            </div>
+          )}
+        </section>
 
         {/* Game History */}
         {games.length > 0 && (
@@ -240,6 +296,39 @@ export default function ProfilePage() {
                           {g.won ? g.score.toLocaleString() : "—"}
                         </span>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* Map history */}
+        {mapGames.length > 0 && (
+          <section>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Recent Map Rounds</h2>
+            <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-700 bg-slate-800/80">
+                  <tr>
+                    <th className="text-left text-xs text-slate-400 font-semibold px-4 py-2.5">Date</th>
+                    <th className="text-left text-xs text-slate-400 font-semibold px-2 py-2.5">Period</th>
+                    <th className="text-center text-xs text-slate-400 font-semibold px-2 py-2.5">Result</th>
+                    <th className="text-right text-xs text-slate-400 font-semibold px-2 py-2.5 hidden sm:table-cell">Strikes</th>
+                    <th className="text-right text-xs text-slate-400 font-semibold px-2 py-2.5 hidden sm:table-cell">Time</th>
+                    <th className="text-right text-xs text-slate-400 font-semibold px-4 py-2.5">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mapGames.map((game) => (
+                    <tr key={game.id} className="border-b border-slate-700/40 hover:bg-slate-700/20 transition-colors">
+                      <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">{formatDate(game.playedAt)}</td>
+                      <td className="px-2 py-2.5 text-slate-300 text-xs">{game.period}</td>
+                      <td className="px-2 py-2.5 text-center"><span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${game.won ? "bg-green-900/60 text-green-300" : "bg-red-900/60 text-red-400"}`}>{game.won ? "✓ WIN" : "✗ LOSS"}</span></td>
+                      <td className="px-2 py-2.5 text-right text-slate-300 text-xs hidden sm:table-cell">{game.strikes}/3</td>
+                      <td className="px-2 py-2.5 text-right text-slate-400 text-xs hidden sm:table-cell">{formatTime(game.timeSeconds)}</td>
+                      <td className="px-4 py-2.5 text-right font-bold font-mono text-xs"><span className={game.won ? "text-amber-300" : "text-slate-600"}>{game.won ? game.score.toLocaleString() : "—"}</span></td>
                     </tr>
                   ))}
                 </tbody>

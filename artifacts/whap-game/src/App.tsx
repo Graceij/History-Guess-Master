@@ -4,6 +4,7 @@ import { dark } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import Home from "@/pages/Home";
 import ProfilePage from "@/pages/ProfilePage";
+import MapGame from "@/pages/MapGame";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -40,7 +41,7 @@ const clerkAppearance = {
     colorInput: "#334155",
     colorInputForeground: "#f1f5f9",
     colorNeutral: "#475569",
-    fontFamily: "'Space Grotesk', system-ui, sans-serif",
+    fontFamily: "'Rubik', system-ui, sans-serif",
     borderRadius: "0.5rem",
   },
   elements: {
@@ -117,6 +118,7 @@ function ClerkProviderWithRoutes() {
     >
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/map" component={MapGame} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />

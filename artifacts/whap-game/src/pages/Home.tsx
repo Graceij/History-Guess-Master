@@ -741,6 +741,11 @@ export default function Home() {
               className="p-1.5 bg-slate-700 hover:bg-violet-700 border border-slate-600 hover:border-violet-500 rounded-lg text-sm leading-none transition-colors"
               aria-label="Leaderboard"
             >🏆</button>
+            <button
+              onClick={() => setLocation("/map")}
+              className="p-1.5 bg-slate-700 hover:bg-amber-500/30 border border-slate-600 hover:border-amber-400 rounded-lg text-sm leading-none transition-colors"
+              aria-label="Map challenge"
+            >🗺️</button>
             {/* Auth */}
             {isLoaded && !isSignedIn && (
               <button
@@ -787,6 +792,12 @@ export default function Home() {
                 className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-violet-700/60 border border-slate-600 hover:border-violet-500 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
               >
                 🏆 Leaderboard
+              </button>
+              <button
+                onClick={() => setLocation("/map")}
+                className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-amber-500/20 border border-slate-600 hover:border-amber-400 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-amber-100 transition-colors"
+              >
+                🗺️ Map Challenge
               </button>
               {isLoaded && !isSignedIn && (
                 <div className="flex gap-1.5">
