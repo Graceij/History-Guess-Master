@@ -166,7 +166,7 @@ export default function ProfilePage() {
             onClick={() => setLocation("/")}
             className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-semibold transition-colors"
           >
-            ← Back to Game
+            ← Back to Vocab Game
           </button>
           <span className="text-sm font-bold text-slate-200">My Profile</span>
           <button
@@ -198,10 +198,15 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* Stats */}
+        {/* Vocab Game */}
         {entry ? (
           <section>
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Stats</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Vocab Game</h2>
+              <button onClick={() => setLocation("/")} className="rounded-lg bg-gradient-to-r from-violet-400 to-pink-400 px-4 py-1.5 text-xs font-bold text-slate-900 transition-colors hover:from-violet-300 hover:to-pink-300">
+                Play Now
+              </button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <StatCard icon="🔥" label="Daily Streak" value={entry.dailyStreak} accent="border-orange-500/40" />
               <StatCard icon="🏆" label="Win Streak" value={entry.currentStreak ?? "—"} accent="border-violet-500/40" />
@@ -220,24 +225,28 @@ export default function ProfilePage() {
             </p>
           </section>
         ) : (
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Vocab Game</h2>
+              <button onClick={() => setLocation("/")} className="rounded-lg bg-gradient-to-r from-violet-400 to-pink-400 px-4 py-1.5 text-xs font-bold text-slate-900 transition-colors hover:from-violet-300 hover:to-pink-300">
+                Play Now
+              </button>
+            </div>
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
             <p className="text-3xl mb-2">🎮</p>
-            <p className="text-slate-300 font-semibold">No Go For Five stats yet!</p>
-            <p className="text-slate-500 text-sm mt-1">Play the original game with all 9 units or a single unit to start tracking those scores. Map Game stats are tracked separately below.</p>
-            <button
-              onClick={() => setLocation("/")}
-              className="mt-4 bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-300 hover:to-pink-300 text-slate-900 font-bold px-6 py-2 rounded-lg text-sm transition-colors"
-            >
-              Play Now
-            </button>
-          </div>
+            <p className="text-slate-300 font-semibold">No vocab games played yet.</p>
+            <p className="text-slate-500 text-sm mt-1">Play a Vocab Game round to start tracking your vocabulary stats.</p>
+            </div>
+          </section>
         )}
 
         {/* Map Game stats */}
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Map Game</h2>
-            <button onClick={() => setLocation("/map")} className="text-xs font-bold text-amber-300 hover:text-amber-200">Play Map Game →</button>
+            <button onClick={() => setLocation("/map")} className="rounded-lg bg-gradient-to-r from-violet-400 to-pink-400 px-4 py-1.5 text-xs font-bold text-slate-900 transition-colors hover:from-violet-300 hover:to-pink-300">
+              Play Now
+            </button>
           </div>
           {mapStats ? (
             <>
@@ -255,8 +264,9 @@ export default function ProfilePage() {
             </>
           ) : (
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 text-center">
-              <p className="text-sm font-semibold text-slate-300">No map rounds saved yet.</p>
-              <p className="mt-1 text-xs text-slate-500">Complete a Map Game round while signed in to start tracking this game separately.</p>
+              <p className="text-3xl mb-2">🗺️</p>
+              <p className="text-sm font-semibold text-slate-300">No map games played yet.</p>
+              <p className="mt-1 text-xs text-slate-500">Play a Map Game round to start tracking your map stats.</p>
             </div>
           )}
         </section>
