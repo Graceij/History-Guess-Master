@@ -6,6 +6,8 @@ import { MAP_PERIODS, MAP_TERMS, type MapPeriod, type MapRegion, type MapTerm } 
 import mapArtwork from "../../../../attached_assets/Map_File_1787626458238.jpg";
 
 type Screen = "setup" | "playing" | "complete";
+type MapFilter = MapPeriod | "all";
+const MAP_FILTERS = ["all", ...MAP_PERIODS] as const;
 
 interface MapLeaderboardEntry {
   rank: number;
@@ -38,8 +40,8 @@ function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
-function buildRound(period: MapPeriod) {
-  const forPeriod = MAP_TERMS.filter((term) => term.period === period);
+function buildRound(period: MapFilter) {
+  const forPeriod = MAP_TERMS.filter((term) => period === "all" || term.period === period);
   return shuffle([
     ...shuffle(forPeriod.filter((term) => term.category === "Easy")).slice(0, 3),
     ...shuffle(forPeriod.filter((term) => term.category === "Hard")).slice(0, 1),
@@ -48,12 +50,12 @@ function buildRound(period: MapPeriod) {
 }
 
 function RegionMap({
-  correctRegions,
+  correctRegion,
   wrongRegion,
   onSelect,
   disabled,
 }: {
-  correctRegions: MapRegion[];
+  correctRegion: MapRegion | null;
   wrongRegion: MapRegion | null;
   onSelect: (region: MapRegion) => void;
   disabled: boolean;
@@ -64,7 +66,7 @@ function RegionMap({
       <svg viewBox="0 0 1024 512" className="absolute inset-0 h-full w-full" aria-label="Click the matching world region">
         {Object.entries(regionPaths).map(([region, path]) => {
           const typedRegion = region as MapRegion;
-          const isCorrect = correctRegions.includes(typedRegion);
+          const isCorrect = correctRegion === typedRegion;
           const isWrong = wrongRegion === typedRegion;
           return (
             <motion.path
@@ -100,7 +102,7 @@ function RegionMap({
 export default function MapGame() {
   const { user, isLoaded } = useUser();
   const [, setLocation] = useLocation();
-  const [period, setPeriod] = useState<MapPeriod>("1200-1450");
+  const [period, setPeriod] = useState<MapFilter>("1200-1450");
   const [screen, setScreen] = useState<Screen>("setup");
   const [round, setRound] = useState<MapTerm[]>([]);
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export default function MapGame() {
   const [strikes, setStrikes] = useState(0);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [correctRegions, setCorrectRegions] = useState<MapRegion[]>([]);
+  const [correctRegion, setCorrectRegion] = useState<MapRegion | null>(null);
   const [wrongRegion, setWrongRegion] = useState<MapRegion | null>(null);
   const [resolving, setResolving] = useState(false);
   const [won, setWon] = useState(false);
@@ -142,7 +144,7 @@ export default function MapGame() {
     setStrikes(0);
     setStartedAt(null);
     setElapsed(0);
-    setCorrectRegions([]);
+    setCorrectRegion(null);
     setWrongRegion(null);
     setResolving(false);
     setWon(false);
@@ -221,8 +223,9 @@ export default function MapGame() {
     }
     setResolving(true);
     if (region === activeTerm.region) {
-      setCorrectRegions((previous) => previous.includes(region) ? previous : [...previous, region]);
+      setCorrectRegion(region);
       window.setTimeout(() => {
+        setCorrectRegion(null);
         if (activeIndex === round.length - 1) finishRound(true, nextAttempts);
         else setActiveIndex((previous) => previous + 1);
         setResolving(false);
@@ -264,7 +267,7 @@ export default function MapGame() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
-      <header className="border-b border-slate-700">
+      <header className="border-b border-slate-700 bg-[#0a0e28] sticky top-0 z-10">
         <div className="mx-auto max-w-4xl px-4 pt-1 pb-2">
           <div className="flex flex-col items-center gap-0.5">
             <img
@@ -277,7 +280,7 @@ export default function MapGame() {
             <p className="text-slate-400 text-xs">Become an AP World History Master!</p>
             <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5">
               <button onClick={() => setLocation("/")} className="rounded-lg border border-slate-600 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-600 hover:text-white">
-                ← Wordle Game
+                ← Vocab Game
               </button>
               <button onClick={() => openLeaderboard()} className="rounded-lg border border-slate-600 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-violet-500 hover:bg-violet-700/60 hover:text-white">
                 🏆 Map Leaderboard
@@ -303,27 +306,25 @@ export default function MapGame() {
         <AnimatePresence mode="wait">
           {screen === "setup" && (
             <motion.section key="setup" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto text-center">
-              <p className="mb-2 text-sm font-bold uppercase tracking-[0.18em] text-violet-300">Map Challenge</p>
-              <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Map It in Five</h2>
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                Click the world region for each term in order. Every round gives you three easy terms, one hard term, and one geography term. You have three strikes.
+                Click the world region for each term in order. Every round gives you three easy terms, one hard term, and one geography term. You have three strikes!
               </p>
               <div className="mx-auto mt-5 max-w-3xl rounded-lg border border-slate-700 bg-slate-800 p-4 text-left sm:p-5">
                 <h2 className="text-base font-bold text-white">Choose a time period</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {MAP_PERIODS.map((option) => (
+                  {MAP_FILTERS.map((option) => (
                     <button key={option} onClick={() => setPeriod(option)} className={`rounded-lg border px-3 py-3 text-sm font-bold transition-all ${period === option ? "border-violet-300 bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-lg shadow-violet-500/20" : "border-slate-600 bg-slate-800 text-slate-300 hover:border-violet-400"}`}>
-                      {option}
+                      {option === "all" ? "All Periods" : option}
                     </button>
                   ))}
                 </div>
                 <div className="mt-6 grid gap-3 border-t border-slate-700 pt-5 text-xs text-slate-400 sm:grid-cols-3">
                   <p><span className="font-bold text-slate-200">5 terms</span><br />3 easy · 1 hard · 1 geography</p>
-                  <p><span className="font-bold text-slate-200">3 strikes</span><br />Wrong regions turn red</p>
+                  <p><span className="font-bold text-slate-200">You have three strikes!</span><br />Wrong regions turn red</p>
                   <p><span className="font-bold text-slate-200">Streak scores</span><br />Fast, accurate wins build your board score</p>
                 </div>
                 <button onClick={startRound} className="mt-6 w-full rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-violet-500/20 transition-transform hover:scale-[1.01]">
-                  Start {period} Round →
+                  Start {period === "all" ? "All Periods" : period} Round →
                 </button>
               </div>
             </motion.section>
@@ -334,7 +335,7 @@ export default function MapGame() {
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-amber-300">{period} · Term {activeIndex + 1} of 5</p>
-                  <p className="mt-1 text-sm text-slate-400">Gold regions are correct. Three strikes ends the round.</p>
+                  <p className="mt-1 text-sm text-slate-400">Correct regions flash gold. You have three strikes!</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 font-mono text-sm text-slate-200">⏱ {formatTime(elapsed)}</span>
@@ -342,7 +343,7 @@ export default function MapGame() {
                 </div>
               </div>
               <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_290px]">
-                <RegionMap correctRegions={correctRegions} wrongRegion={wrongRegion} onSelect={handleRegion} disabled={resolving} />
+                <RegionMap correctRegion={correctRegion} wrongRegion={wrongRegion} onSelect={handleRegion} disabled={resolving} />
                 <aside className="rounded-lg border border-slate-700 bg-slate-800 p-4 lg:sticky lg:top-5">
                   <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Click in this order</h2>
                   <ol className="space-y-2">

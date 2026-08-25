@@ -744,7 +744,7 @@ export default function Home() {
             <button
               onClick={() => setLocation("/map")}
               className="p-1.5 bg-slate-700 hover:bg-amber-500/30 border border-slate-600 hover:border-amber-400 rounded-lg text-sm leading-none transition-colors"
-              aria-label="Map challenge"
+              aria-label="Map game"
             >🗺️</button>
             {/* Auth */}
             {isLoaded && !isSignedIn && (
@@ -797,7 +797,7 @@ export default function Home() {
                 onClick={() => setLocation("/map")}
                 className="flex items-center gap-1.5 bg-slate-700/80 hover:bg-amber-500/20 border border-slate-600 hover:border-amber-400 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-amber-100 transition-colors"
               >
-                🗺️ Map Challenge
+                🗺️ Map Game
               </button>
               {isLoaded && !isSignedIn && (
                 <div className="flex gap-1.5">

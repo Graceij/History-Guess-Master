@@ -223,7 +223,7 @@ export default function ProfilePage() {
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
             <p className="text-3xl mb-2">🎮</p>
             <p className="text-slate-300 font-semibold">No Go For Five stats yet!</p>
-            <p className="text-slate-500 text-sm mt-1">Play the original game with all 9 units or a single unit to start tracking those scores. Map Challenge stats are tracked separately below.</p>
+            <p className="text-slate-500 text-sm mt-1">Play the original game with all 9 units or a single unit to start tracking those scores. Map Game stats are tracked separately below.</p>
             <button
               onClick={() => setLocation("/")}
               className="mt-4 bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-300 hover:to-pink-300 text-slate-900 font-bold px-6 py-2 rounded-lg text-sm transition-colors"
@@ -233,11 +233,11 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Map Challenge stats */}
+        {/* Map Game stats */}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Map Challenge</h2>
-            <button onClick={() => setLocation("/map")} className="text-xs font-bold text-amber-300 hover:text-amber-200">Play Map Challenge →</button>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Map Game</h2>
+            <button onClick={() => setLocation("/map")} className="text-xs font-bold text-amber-300 hover:text-amber-200">Play Map Game →</button>
           </div>
           {mapStats ? (
             <>
@@ -256,7 +256,7 @@ export default function ProfilePage() {
           ) : (
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 text-center">
               <p className="text-sm font-semibold text-slate-300">No map rounds saved yet.</p>
-              <p className="mt-1 text-xs text-slate-500">Complete a Map Challenge round while signed in to start tracking this game separately.</p>
+              <p className="mt-1 text-xs text-slate-500">Complete a Map Game round while signed in to start tracking this game separately.</p>
             </div>
           )}
         </section>

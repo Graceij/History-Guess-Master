@@ -27,8 +27,8 @@ function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
-function makeRound(period: MapPeriod) {
-  const terms = MAP_TERMS.filter((term) => term.period === period);
+function makeRound(period: MapPeriod | "all") {
+  const terms = MAP_TERMS.filter((term) => period === "all" || term.period === period);
   return shuffle([
     ...shuffle(terms.filter((term) => term.category === "Easy")).slice(0, 3),
     ...shuffle(terms.filter((term) => term.category === "Hard")).slice(0, 1),
@@ -100,7 +100,7 @@ router.get("/map/leaderboard", async (req, res) => {
 });
 
 router.post("/map/challenge", requireAuth, async (req: any, res) => {
-  const parsed = z.object({ period: z.enum(MAP_PERIODS) }).safeParse(req.body);
+  const parsed = z.object({ period: z.enum(MAP_FILTERS) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid time period" }); return; }
   const terms = makeRound(parsed.data.period);
   try {
@@ -199,8 +199,10 @@ router.post("/map/submit", requireAuth, async (req: any, res) => {
 
       const timeSeconds = Math.max(1, Math.floor((Date.now() - challenge.startedAt.getTime()) / 1000));
       const score = verified.won ? Math.max(500, 6000 - timeSeconds * 25 - verified.strikes * 250) : 0;
-      await updateScore(tx, clerkUserId, "all", verified.won, score);
-      await updateScore(tx, clerkUserId, challenge.period, verified.won, score);
+       await updateScore(tx, clerkUserId, "all", verified.won, score);
+       if (challenge.period !== "all") {
+         await updateScore(tx, clerkUserId, challenge.period, verified.won, score);
+       }
       await tx.insert(mapGameResultsTable).values({
         clerkUserId, period: challenge.period, score, strikes: verified.strikes, timeSeconds,
         won: verified.won, termsJson: challenge.termsJson,
